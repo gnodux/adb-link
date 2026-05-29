@@ -10,5 +10,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"         // driver: "mysql"
 	_ "github.com/lib/pq"                      // driver: "postgres"
 	_ "github.com/microsoft/go-mssqldb"        // driver: "sqlserver"
+	_ "github.com/sijms/go-ora/v2"            // driver: "oracle"
 	_ "modernc.org/sqlite"                     // driver: "sqlite" (pure Go)
 )

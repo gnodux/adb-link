@@ -59,7 +59,7 @@ func RegisterCoreTools(srv *Server, c *services.Container) {
 		Description: "Get the complete schema of a specified database (tables, columns, types, and comments).",
 		InputSchema: schemaObject(map[string]any{
 			"datasource_name": prop("string", "Datasource name"),
-			"database":        prop("string", "Database name (index name for ES datasources)"),
+			"database":        prop("string", "Database name (index for ES, schema for Oracle, database for MongoDB/Milvus/GaussDB/TiDB, ignored for Redis)"),
 		}, []string{"datasource_name", "database"}),
 	}, func(ctx context.Context, args map[string]any) (string, error) {
 		ds, _ := args["datasource_name"].(string)
@@ -77,7 +77,7 @@ func RegisterCoreTools(srv *Server, c *services.Container) {
 		Description: "Get detailed column information for a specified table.",
 		InputSchema: schemaObject(map[string]any{
 			"datasource_name": prop("string", "Datasource name"),
-			"database":        prop("string", "Database name (index name for ES datasources)"),
+			"database":        prop("string", "Database name (index for ES, schema for Oracle, database for MongoDB/Milvus/GaussDB/TiDB, ignored for Redis)"),
 			"table":           prop("string", "Table name"),
 		}, []string{"datasource_name", "database", "table"}),
 	}, func(ctx context.Context, args map[string]any) (string, error) {
@@ -97,7 +97,7 @@ func RegisterCoreTools(srv *Server, c *services.Container) {
 		Description: "Get detailed column information for a specified view.",
 		InputSchema: schemaObject(map[string]any{
 			"datasource_name": prop("string", "Datasource name"),
-			"database":        prop("string", "Database name (index name for ES datasources)"),
+			"database":        prop("string", "Database name (index for ES, schema for Oracle, database for MongoDB/Milvus/GaussDB/TiDB, ignored for Redis)"),
 			"view":            prop("string", "View name"),
 		}, []string{"datasource_name", "database", "view"}),
 	}, func(ctx context.Context, args map[string]any) (string, error) {
@@ -117,8 +117,8 @@ func RegisterCoreTools(srv *Server, c *services.Container) {
 		Description: "Execute a query on a specified datasource and database, returning structured results.",
 		InputSchema: schemaObject(map[string]any{
 			"datasource_name": prop("string", "Datasource name"),
-			"database":        prop("string", "Database name (index name for ES datasources)"),
-			"sql":             prop("string", "SQL statement; for ES datasources, provide a JSON DSL query body"),
+			"database":        prop("string", "Database name (index for ES, schema for Oracle, database for MongoDB/Milvus/GaussDB/TiDB, ignored for Redis)"),
+			"sql":             prop("string", "Query statement: SQL for relational DBs; JSON DSL for Elasticsearch; Redis command string; JSON filter/pipeline for MongoDB; JSON query/search for Milvus"),
 			"limit":           propWithDefault("integer", "Maximum number of rows to return", 100),
 		}, []string{"datasource_name", "database", "sql"}),
 	}, func(ctx context.Context, args map[string]any) (string, error) {
@@ -139,7 +139,7 @@ func RegisterCoreTools(srv *Server, c *services.Container) {
 	// explain_query
 	srv.RegisterTool(Tool{
 		Name:        "explain_query",
-		Description: "Get the execution plan for a SQL statement. Supports MySQL, PostgreSQL, SQLite, ClickHouse, and MSSQL.",
+		Description: "Get the execution plan for a SQL statement. Supports MySQL, PostgreSQL, SQLite, ClickHouse, GaussDB, TiDB, and MSSQL.",
 		InputSchema: schemaObject(map[string]any{
 			"datasource_name": prop("string", "Datasource name"),
 			"database":        prop("string", "Database name"),

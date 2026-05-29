@@ -71,15 +71,15 @@ func (h *Handlers) DatasourceTest(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	if cfg.Type == models.DatabaseTypeElasticsearch {
-		client, _, err := h.Container.ConnectionService.GetESClient(req.Name)
+	if services.IsNonSQLType(cfg.Type) {
+		client, _, err := h.Container.ConnectionService.GetNonSQLClient(req.Name)
 		if err != nil {
 			WriteJSON(w, http.StatusOK, models.APIResponse{
 				Success: false, Data: map[string]bool{"connected": false}, Error: err.Error(),
 			})
 			return
 		}
-		if _, err := client.Info(r.Context()); err != nil {
+		if err := client.Ping(r.Context()); err != nil {
 			WriteJSON(w, http.StatusOK, models.APIResponse{
 				Success: false, Data: map[string]bool{"connected": false}, Error: err.Error(),
 			})

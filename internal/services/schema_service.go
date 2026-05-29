@@ -43,8 +43,8 @@ func (s *SchemaService) GetDatabases(ctx context.Context, datasourceName, userNa
 	}
 
 	var databases []models.ObjectName
-	if cfg.Type == models.DatabaseTypeElasticsearch {
-		client, _, err := s.connectionService.GetESClient(datasourceName)
+	if IsNonSQLType(cfg.Type) {
+		client, _, err := s.connectionService.GetNonSQLClient(datasourceName)
 		if err != nil {
 			return nil, err
 		}
@@ -96,17 +96,17 @@ func (s *SchemaService) GetSchema(ctx context.Context, datasourceName, database,
 
 	var tables, views []models.TableInfo
 
-	if cfg.Type == models.DatabaseTypeElasticsearch {
-		client, _, err := s.connectionService.GetESClient(datasourceName)
+	if IsNonSQLType(cfg.Type) {
+		client, _, err := s.connectionService.GetNonSQLClient(datasourceName)
 		if err != nil {
 			return nil, err
 		}
-		tableNames, err := client.GetTableNames(ctx)
+		tableNames, err := client.GetTableNames(ctx, database)
 		if err != nil {
 			return nil, err
 		}
 		for _, t := range tableNames {
-			ti, err := client.GetTableInfo(ctx, t.Name)
+			ti, err := client.GetTableInfo(ctx, database, t.Name)
 			if err != nil {
 				return nil, err
 			}
@@ -202,12 +202,12 @@ func (s *SchemaService) GetTableInfo(ctx context.Context, datasourceName, databa
 	}
 
 	var ti *models.TableInfo
-	if cfg.Type == models.DatabaseTypeElasticsearch {
-		client, _, err := s.connectionService.GetESClient(datasourceName)
+	if IsNonSQLType(cfg.Type) {
+		client, _, err := s.connectionService.GetNonSQLClient(datasourceName)
 		if err != nil {
 			return nil, err
 		}
-		ti, err = client.GetTableInfo(ctx, table)
+		ti, err = client.GetTableInfo(ctx, database, table)
 		if err != nil {
 			return nil, err
 		}
@@ -258,13 +258,9 @@ func (s *SchemaService) GetViewInfo(ctx context.Context, datasourceName, databas
 	}
 
 	var vi *models.TableInfo
-	if cfg.Type == models.DatabaseTypeElasticsearch {
-		client, _, err := s.connectionService.GetESClient(datasourceName)
-		if err != nil {
-			return nil, err
-		}
+	if IsNonSQLType(cfg.Type) {
+		// Non-SQL databases typically don't have views
 		vi = &models.TableInfo{Name: view}
-		_ = client
 	} else {
 		db, _, err := s.connectionService.GetSQLDB(datasourceName, database)
 		if err != nil {
