@@ -1,0 +1,41 @@
+# Compiled binaries
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test artifacts
+*.test
+*.out
+coverage.html
+
+# SQLite database files (runtime data)
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# Log files
+logs/
+*.log
+
+# Environment and secrets
+.env
+.env.*
+*.pem
+*.key
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Qoder CLI
+.qoder/
