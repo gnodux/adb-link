@@ -1,0 +1,9 @@
+kind: permission
+groups: ["admin"]
+enable: true
+rules:
+  - datasource: "*"
+    databases: ["*"]
+    tables: ["*"]
+    fields: ["*"]
+tools: ["*"]

@@ -1,0 +1,18 @@
+kind: metadata
+datasource: example
+tables:
+  users:
+    comment: "用户主表，存储所有注册用户信息"
+    columns:
+      id:
+        comment: "用户唯一标识"
+      name:
+        comment: "用户姓名"
+      email:
+        comment: "用户邮箱地址"
+views:
+  active_users_view:
+    comment: "活跃用户视图，展示最近30天登录过的用户"
+databases:
+  main:
+    comment: "主数据库"

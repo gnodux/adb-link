@@ -1,0 +1,34 @@
+database: ai_agent_skills
+datasource: dev-db
+description: 查询指定用户在指定Agent、指定时间段内的所有会话及其详细轮次消息。返回conversations与turn_messages的扁平化JOIN结果，按会话时间排序。结果中conversation字段会重复，可按conversation_id分组查看。
+enable: true
+kind: tool
+name: query_user_agent_conversations
+parameters:
+- description: 用户名
+  name: username
+  required: true
+  type: string
+- description: Agent ID，如 AI_Component_Find
+  name: agent_id
+  required: true
+  type: string
+- description: 开始时间，格式 YYYY-MM-DD HH:MM:SS
+  name: start_time
+  required: true
+  type: string
+- description: 结束时间，格式 YYYY-MM-DD HH:MM:SS
+  name: end_time
+  required: true
+  type: string
+template: "SELECT \n    c.conversation_id,\n    c.task_id,\n    c.agent_id,\n    c.query,\n\
+  \    c.response,\n    c.total_rounds,\n    c.total_tool_calls,\n    c.total_input_tokens,\n\
+  \    c.total_output_tokens,\n    c.status,\n    c.error_count,\n    c.create_time\
+  \ as conversation_create_time,\n    c.update_time as conversation_update_time,\n\
+  \    tm.message_id,\n    tm.kind,\n    tm.round as message_round,\n    tm.role as\
+  \ message_role,\n    tm.content as message_content,\n    tm.skill as message_skill,\n\
+  \    tm.create_time as message_create_time\nFROM conversations c\nJOIN users u ON\
+  \ c.user_id = u.id\nLEFT JOIN turn_messages tm ON c.conversation_id = tm.conversation_id\n\
+  WHERE u.username = :username\n  AND c.agent_id = :agent_id\n  AND c.create_time\
+  \ >= :start_time\n  AND c.create_time <= :end_time\nORDER BY c.create_time, tm.create_time,\
+  \ tm.round"

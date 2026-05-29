@@ -1,0 +1,88 @@
+kind: datasource
+name: dev-db
+type: mysql
+description: "开发环境的mysql数据库"
+connection:
+  host: 10.129.20.42
+  port: 3306
+  username: readonlyuser
+  password: beisen@2016
+  default_database: sys
+options:
+  pool_size: 5
+  pool_pre_ping: true      # 默认已开启，一般不需要写
+  pool_recycle: 3600       # 默认 1 小时
+---
+kind: datasource
+name: log-ck
+type: clickhouse
+description: "日志集群的clickhouse"
+connection:
+  host: 10.129.20.73
+  port: 9100
+---
+kind: datasource
+name: es-prod
+enable: false
+type: elasticsearch
+description: "生产环境 Elasticsearch 集群"
+connection:
+  host: 10.129.20.50
+  port: 9200
+  username: elastic
+  password: changeme
+options:
+  use_ssl: false
+  verify_certs: false
+  request_timeout: 30
+---
+name: mssql-dev
+type: mssql
+enable: false
+description: "开发环境 SQL Server"
+connection:
+  host: 10.129.20.70
+  port: 1433
+  username: sa
+  password: "YourStrong!Passw0rd"
+  default_database: master
+options:
+  driver: "ODBC Driver 18 for SQL Server"
+  trust_server_certificate: true
+  pool_size: 5
+  pool_recycle: 3600
+---
+kind: datasource
+name: example
+type: sqlite
+description: "Example SQLite datasource for testing"
+connection:
+  path: ./data/example.db
+options:
+  pool_size: 1
+---
+kind: datasource
+name: hive-prod
+type: hive
+enable: true
+description: "Hadoop Hive on HiveServer2"
+connection:
+  host: 10.129.20.31
+  port: 10000
+  default_database: default
+options:
+  auth: NONE
+  connect_timeout: 30
+---
+kind: datasource
+name: pg-local
+type: postgresql
+description: "本地 PostgreSQL 测试库"
+connection:
+  host: 192.168.31.49
+  port: 15432
+  username: postgres
+  password: pga11b99
+  default_database: postgres
+options:
+  pool_size: 5
