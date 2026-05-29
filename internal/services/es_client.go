@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/gnodux/adb-link/internal/models"
@@ -86,6 +87,12 @@ func (c *ESClient) Info(ctx context.Context) (map[string]any, error) {
 	return c.doRequest(ctx, "GET", "/", nil)
 }
 
+// Ping verifies the connection is alive.
+func (c *ESClient) Ping(ctx context.Context) error {
+	_, err := c.Info(ctx)
+	return err
+}
+
 // GetDatabases returns the cluster name as a virtual database.
 func (c *ESClient) GetDatabases(ctx context.Context) ([]models.ObjectName, error) {
 	info, err := c.Info(ctx)
@@ -100,7 +107,8 @@ func (c *ESClient) GetDatabases(ctx context.Context) ([]models.ObjectName, error
 }
 
 // GetTableNames returns concrete indices (excluding system).
-func (c *ESClient) GetTableNames(ctx context.Context) ([]models.ObjectName, error) {
+// The database parameter is ignored for Elasticsearch.
+func (c *ESClient) GetTableNames(ctx context.Context, database string) ([]models.ObjectName, error) {
 	resp, err := c.doRequest(ctx, "GET", "/_alias/*?expand_wildcards=open", nil)
 	if err != nil {
 		return nil, err
@@ -120,13 +128,14 @@ func (c *ESClient) GetTableNames(ctx context.Context) ([]models.ObjectName, erro
 }
 
 // GetTableInfo returns column info from index mappings.
-func (c *ESClient) GetTableInfo(ctx context.Context, index string) (*models.TableInfo, error) {
-	resp, err := c.doRequest(ctx, "GET", fmt.Sprintf("/%s/_mapping", index), nil)
+// The database parameter is ignored for Elasticsearch; table is used as the index name.
+func (c *ESClient) GetTableInfo(ctx context.Context, database, table string) (*models.TableInfo, error) {
+	resp, err := c.doRequest(ctx, "GET", fmt.Sprintf("/%s/_mapping", table), nil)
 	if err != nil {
 		return nil, err
 	}
 	var indexData map[string]any
-	if d, ok := resp[index].(map[string]any); ok {
+	if d, ok := resp[table].(map[string]any); ok {
 		indexData = d
 	} else {
 		// Get first available
@@ -138,7 +147,7 @@ func (c *ESClient) GetTableInfo(ctx context.Context, index string) (*models.Tabl
 		}
 	}
 	if indexData == nil {
-		return &models.TableInfo{Name: index}, nil
+		return &models.TableInfo{Name: table}, nil
 	}
 	mappings, _ := indexData["mappings"].(map[string]any)
 	properties, _ := mappings["properties"].(map[string]any)
@@ -146,7 +155,7 @@ func (c *ESClient) GetTableInfo(ctx context.Context, index string) (*models.Tabl
 	var columns []models.ColumnInfo
 	collectFields(&columns, "", properties)
 
-	return &models.TableInfo{Name: index, Columns: columns}, nil
+	return &models.TableInfo{Name: table, Columns: columns}, nil
 }
 
 func collectFields(columns *[]models.ColumnInfo, prefix string, props map[string]any) {
@@ -179,6 +188,78 @@ func (c *ESClient) Search(ctx context.Context, index string, body map[string]any
 	q.Set("size", fmt.Sprintf("%d", size))
 	path := fmt.Sprintf("/%s/_search?%s", index, q.Encode())
 	return c.doRequest(ctx, "POST", path, body)
+}
+
+// Execute runs an ES DSL query and returns tabular results.
+// The query string is parsed as JSON DSL. database is used as the index name.
+func (c *ESClient) Execute(ctx context.Context, database, query string, limit int) (*models.QueryResult, error) {
+	raw := strings.TrimSpace(query)
+	body := map[string]any{}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), &body); err != nil {
+			return nil, fmt.Errorf("invalid ES DSL JSON: %w", err)
+		}
+	}
+
+	start := time.Now()
+	resp, err := c.Search(ctx, database, body, limit+1)
+	if err != nil {
+		return nil, err
+	}
+
+	hitsRoot, _ := resp["hits"].(map[string]any)
+	hitsList, _ := hitsRoot["hits"].([]any)
+	truncated := len(hitsList) > limit
+	if truncated {
+		hitsList = hitsList[:limit]
+	}
+
+	columnNames := []string{"_id", "_index", "_score"}
+	seen := map[string]bool{"_id": true, "_index": true, "_score": true}
+	for _, h := range hitsList {
+		hit, _ := h.(map[string]any)
+		source, _ := hit["_source"].(map[string]any)
+		for k := range source {
+			if !seen[k] {
+				columnNames = append(columnNames, k)
+				seen[k] = true
+			}
+		}
+	}
+	columns := make([]models.QueryColumnMeta, len(columnNames))
+	for i, n := range columnNames {
+		columns[i] = models.QueryColumnMeta{Name: n, Type: "object"}
+	}
+
+	rows := make([][]any, 0, len(hitsList))
+	for _, h := range hitsList {
+		hit, _ := h.(map[string]any)
+		source, _ := hit["_source"].(map[string]any)
+		row := make([]any, len(columnNames))
+		for i, name := range columnNames {
+			switch name {
+			case "_id":
+				row[i] = hit["_id"]
+			case "_index":
+				row[i] = hit["_index"]
+			case "_score":
+				row[i] = hit["_score"]
+			default:
+				row[i] = source[name]
+			}
+		}
+		rows = append(rows, serializeRow(row))
+	}
+
+	elapsedMs := float64(time.Since(start).Microseconds()) / 1000.0
+	return &models.QueryResult{
+		Columns:         columns,
+		Rows:            rows,
+		RowCount:        len(rows),
+		ExecutionTimeMs: roundFloat(elapsedMs, 2),
+		Truncated:       truncated,
+		Limit:           limit,
+	}, nil
 }
 
 // Close is a no-op (HTTP client doesn't need explicit close).

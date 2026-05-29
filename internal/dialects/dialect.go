@@ -41,6 +41,18 @@ func GetDialect(dbType models.DatabaseType) (SchemaDialect, error) {
 		return &ElasticsearchDialect{}, nil
 	case models.DatabaseTypeHive:
 		return &HiveDialect{}, nil
+	case models.DatabaseTypeGaussDB:
+		return &GaussDBDialect{}, nil
+	case models.DatabaseTypeRedis:
+		return &RedisDialect{}, nil
+	case models.DatabaseTypeMongoDB:
+		return &MongoDBDialect{}, nil
+	case models.DatabaseTypeMilvus:
+		return &MilvusDialect{}, nil
+	case models.DatabaseTypeOracle:
+		return &OracleDialect{}, nil
+	case models.DatabaseTypeTiDB:
+		return &TiDBDialect{}, nil
 	default:
 		return nil, fmt.Errorf("unsupported database type: %s", dbType)
 	}

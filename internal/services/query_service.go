@@ -26,6 +26,8 @@ var explainTemplates = map[models.DatabaseType]string{
 	models.DatabaseTypePostgreSQL: "EXPLAIN (FORMAT JSON) %s",
 	models.DatabaseTypeSQLite:     "EXPLAIN QUERY PLAN %s",
 	models.DatabaseTypeClickHouse: "EXPLAIN %s",
+	models.DatabaseTypeGaussDB:    "EXPLAIN (FORMAT JSON) %s",
+	models.DatabaseTypeTiDB:       "EXPLAIN FORMAT='brief' %s",
 }
 
 func isExplainSupported(t models.DatabaseType) bool {
@@ -101,14 +103,10 @@ func (qs *QueryService) Execute(ctx context.Context, req *models.QueryRequest, u
 		req.TimeoutSeconds = 60
 	}
 
-	switch cfg.Type {
-	case models.DatabaseTypeElasticsearch:
-		return qs.executeES(ctx, req)
-	case models.DatabaseTypeHive:
-		return qs.executeSQL(ctx, req, cfg)
-	default:
-		return qs.executeSQL(ctx, req, cfg)
+	if IsNonSQLType(cfg.Type) {
+		return qs.executeNonSQL(ctx, req)
 	}
+	return qs.executeSQL(ctx, req, cfg)
 }
 
 // executeSQL runs a standard SQL query through database/sql.
@@ -203,83 +201,17 @@ func (qs *QueryService) queryWithRetry(ctx context.Context, db *sql.DB, sqlStr s
 	return nil, fmt.Errorf("query failed after retries")
 }
 
-// executeES runs an Elasticsearch DSL query.
-func (qs *QueryService) executeES(ctx context.Context, req *models.QueryRequest) (*models.QueryResult, error) {
-	client, _, err := qs.connectionService.GetESClient(req.DatasourceName)
+// executeNonSQL runs a query through a NonSQLClient (Elasticsearch, Redis, MongoDB, Milvus).
+func (qs *QueryService) executeNonSQL(ctx context.Context, req *models.QueryRequest) (*models.QueryResult, error) {
+	client, _, err := qs.connectionService.GetNonSQLClient(req.DatasourceName)
 	if err != nil {
 		return nil, err
-	}
-
-	raw := strings.TrimSpace(req.SQL)
-	body := map[string]any{}
-	if raw != "" {
-		if err := json.Unmarshal([]byte(raw), &body); err != nil {
-			return nil, fmt.Errorf("invalid ES DSL JSON: %w", err)
-		}
 	}
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(req.TimeoutSeconds)*time.Second)
 	defer cancel()
 
-	start := time.Now()
-	resp, err := client.Search(timeoutCtx, req.Database, body, req.Limit+1)
-	if err != nil {
-		return nil, err
-	}
-
-	hitsRoot, _ := resp["hits"].(map[string]any)
-	hitsList, _ := hitsRoot["hits"].([]any)
-	truncated := len(hitsList) > req.Limit
-	if truncated {
-		hitsList = hitsList[:req.Limit]
-	}
-
-	columnNames := []string{"_id", "_index", "_score"}
-	seen := map[string]bool{"_id": true, "_index": true, "_score": true}
-	for _, h := range hitsList {
-		hit, _ := h.(map[string]any)
-		source, _ := hit["_source"].(map[string]any)
-		for k := range source {
-			if !seen[k] {
-				columnNames = append(columnNames, k)
-				seen[k] = true
-			}
-		}
-	}
-	columns := make([]models.QueryColumnMeta, len(columnNames))
-	for i, n := range columnNames {
-		columns[i] = models.QueryColumnMeta{Name: n, Type: "object"}
-	}
-
-	rows := make([][]any, 0, len(hitsList))
-	for _, h := range hitsList {
-		hit, _ := h.(map[string]any)
-		source, _ := hit["_source"].(map[string]any)
-		row := make([]any, len(columnNames))
-		for i, name := range columnNames {
-			switch name {
-			case "_id":
-				row[i] = hit["_id"]
-			case "_index":
-				row[i] = hit["_index"]
-			case "_score":
-				row[i] = hit["_score"]
-			default:
-				row[i] = source[name]
-			}
-		}
-		rows = append(rows, serializeRow(row))
-	}
-
-	elapsedMs := float64(time.Since(start).Microseconds()) / 1000.0
-	return &models.QueryResult{
-		Columns:         columns,
-		Rows:            rows,
-		RowCount:        len(rows),
-		ExecutionTimeMs: roundFloat(elapsedMs, 2),
-		Truncated:       truncated,
-		Limit:           req.Limit,
-	}, nil
+	return client.Execute(timeoutCtx, req.Database, req.SQL, req.Limit)
 }
 
 // Explain runs an EXPLAIN-style query for the supported database types.
@@ -423,8 +355,7 @@ func (qs *QueryService) ExecuteTemplate(ctx context.Context, tool *models.ToolCo
 		return nil, err
 	}
 
-	switch cfg.Type {
-	case models.DatabaseTypeElasticsearch:
+	if IsNonSQLType(cfg.Type) {
 		body := tool.Template
 		for k, v := range params {
 			var replacement string
@@ -448,9 +379,10 @@ func (qs *QueryService) ExecuteTemplate(ctx context.Context, tool *models.ToolCo
 			Limit:          1000,
 			TimeoutSeconds: 30,
 		}
-		return qs.executeES(ctx, req)
+		return qs.executeNonSQL(ctx, req)
+	}
 
-	case models.DatabaseTypeHive:
+	if cfg.Type == models.DatabaseTypeHive {
 		body := tool.Template
 		for k, v := range params {
 			body = strings.ReplaceAll(body, ":"+k, fmt.Sprintf("%v", v))
@@ -467,10 +399,9 @@ func (qs *QueryService) ExecuteTemplate(ctx context.Context, tool *models.ToolCo
 			TimeoutSeconds: 30,
 		}
 		return qs.executeSQL(ctx, req, cfg)
-
-	default:
-		return qs.executeTemplateSQL(ctx, tool, params, cfg)
 	}
+
+	return qs.executeTemplateSQL(ctx, tool, params, cfg)
 }
 
 // executeTemplateSQL substitutes :param placeholders for SQL datasources by
@@ -522,7 +453,7 @@ func convertNamedParams(template string, params map[string]any, t models.Databas
 		args = append(args, v)
 		idx++
 		switch t {
-		case models.DatabaseTypePostgreSQL:
+		case models.DatabaseTypePostgreSQL, models.DatabaseTypeGaussDB:
 			return fmt.Sprintf("$%d", idx)
 		case models.DatabaseTypeMSSQL:
 			return fmt.Sprintf("@p%d", idx)

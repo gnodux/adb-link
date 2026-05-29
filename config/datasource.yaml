@@ -86,3 +86,84 @@ connection:
   default_database: postgres
 options:
   pool_size: 5
+---
+kind: datasource
+name: gaussdb-prod
+type: gaussdb
+enable: false
+description: "华为 GaussDB 生产环境"
+connection:
+  host: 10.129.20.80
+  port: 5432
+  username: gaussdb_user
+  password: "${GAUSSDB_PASSWORD}"
+  default_database: mydb
+options:
+  sslmode: disable
+  pool_size: 5
+---
+kind: datasource
+name: redis-prod
+type: redis
+enable: false
+description: "Redis 生产集群"
+connection:
+  host: 10.129.20.60
+  port: 6379
+  password: "${REDIS_PASSWORD}"
+options:
+  db: 0
+---
+kind: datasource
+name: mongo-prod
+type: mongodb
+enable: false
+description: "MongoDB 生产集群"
+connection:
+  host: 10.129.20.70
+  port: 27017
+  username: app_reader
+  password: "${MONGO_PASSWORD}"
+  default_database: myapp
+options:
+  uri: ""
+---
+kind: datasource
+name: milvus-prod
+type: milvus
+enable: false
+description: "Milvus 向量数据库"
+connection:
+  host: 10.129.20.90
+  port: 19530
+  username: root
+  password: "${MILVUS_PASSWORD}"
+---
+kind: datasource
+name: oracle-prod
+type: oracle
+enable: false
+description: "Oracle 生产数据库"
+connection:
+  host: 10.129.20.100
+  port: 1521
+  username: app_reader
+  password: "${ORACLE_PASSWORD}"
+  default_database: ORCL
+options:
+  pool_size: 5
+---
+kind: datasource
+name: tidb-prod
+type: tidb
+enable: false
+description: "TiDB 分布式数据库"
+connection:
+  host: 10.129.20.110
+  port: 4000
+  username: root
+  password: "${TIDB_PASSWORD}"
+  default_database: mydb
+options:
+  pool_size: 10
+  charset: utf8mb4

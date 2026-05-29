@@ -13,6 +13,12 @@ const (
 	DatabaseTypeMSSQL         DatabaseType = "mssql"
 	DatabaseTypeElasticsearch DatabaseType = "elasticsearch"
 	DatabaseTypeHive          DatabaseType = "hive"
+	DatabaseTypeGaussDB       DatabaseType = "gaussdb"
+	DatabaseTypeRedis         DatabaseType = "redis"
+	DatabaseTypeMongoDB       DatabaseType = "mongodb"
+	DatabaseTypeMilvus        DatabaseType = "milvus"
+	DatabaseTypeOracle        DatabaseType = "oracle"
+	DatabaseTypeTiDB          DatabaseType = "tidb"
 )
 
 // DialectInfo provides dialect-specific metadata for LLM guidance.
@@ -82,6 +88,54 @@ var DialectInfoMap = map[DatabaseType]DialectInfo{
 		LimitSyntax:     "LIMIT n",
 		Features:        []string{"partitions", "bucketing", "UDF", "lateral_view"},
 		Notes:           "使用HiveQL语法，支持分区表、桶表、用户自定义函数。不支持UPDATE/DELETE（除ACID表外）。",
+	},
+	DatabaseTypeGaussDB: {
+		SQLStyle:        "gaussdb",
+		IdentifierQuote: `"`,
+		StringQuote:     "'",
+		LimitSyntax:     "LIMIT n",
+		Features:        []string{"views", "explain", "cte", "json_functions", "window_functions", "materialized_views"},
+		Notes:           "华为GaussDB，兼容PostgreSQL语法。系统目录可能与标准PostgreSQL略有差异。",
+	},
+	DatabaseTypeRedis: {
+		SQLStyle:        "redis_commands",
+		IdentifierQuote: "",
+		StringQuote:     "",
+		LimitSyntax:     "SCAN的COUNT参数",
+		Features:        []string{"key_value", "hash", "list", "set", "sorted_set", "stream", "pubsub"},
+		Notes:           "Redis使用原生命令，不使用SQL。查询时传入Redis命令字符串（如 'GET mykey', 'HGETALL myhash'）。Schema发现列出key模式分组。",
+	},
+	DatabaseTypeMongoDB: {
+		SQLStyle:        "mongodb_query",
+		IdentifierQuote: "",
+		StringQuote:     "",
+		LimitSyntax:     "查询选项中的limit字段",
+		Features:        []string{"document_query", "aggregation_pipeline", "index_management", "change_streams"},
+		Notes:           "MongoDB使用JSON过滤语法。查询格式: {\"collection\": \"mycoll\", \"filter\": {...}, \"projection\": {...}, \"sort\": {...}, \"limit\": N}。聚合: {\"collection\": \"mycoll\", \"pipeline\": [...]}。",
+	},
+	DatabaseTypeMilvus: {
+		SQLStyle:        "milvus_query",
+		IdentifierQuote: "",
+		StringQuote:     "",
+		LimitSyntax:     "limit参数",
+		Features:        []string{"vector_search", "scalar_filter", "hybrid_search", "collection_schema"},
+		Notes:           "Milvus向量数据库。标量查询: {\"collection\": \"mycoll\", \"filter\": \"id > 100\", \"output_fields\": [\"*\"]}。向量搜索: {\"collection\": \"mycoll\", \"data\": [[0.1, 0.2, ...]], \"anns_field\": \"embedding\", \"limit\": 10}。",
+	},
+	DatabaseTypeOracle: {
+		SQLStyle:        "oracle",
+		IdentifierQuote: `"`,
+		StringQuote:     "'",
+		LimitSyntax:     "FETCH FIRST n ROWS ONLY (12c+) 或 ROWNUM",
+		Features:        []string{"views", "explain", "stored_procedures", "cte", "window_functions", "materialized_views", "json_functions"},
+		Notes:           "Oracle SQL语法。使用双引号标识符。LIMIT通过FETCH FIRST (12c+)或ROWNUM子查询实现。",
+	},
+	DatabaseTypeTiDB: {
+		SQLStyle:        "mysql",
+		IdentifierQuote: "`",
+		StringQuote:     "'",
+		LimitSyntax:     "LIMIT n",
+		Features:        []string{"views", "explain", "stored_procedures", "json_functions", "window_functions", "cte", "distributed_transactions"},
+		Notes:           "TiDB兼容MySQL语法。使用反引号标识符。分布式SQL数据库，支持强一致性事务。默认端口4000。",
 	},
 }
 

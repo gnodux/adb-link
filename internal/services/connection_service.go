@@ -17,8 +17,8 @@ import (
 type ConnectionService struct {
 	mu            sync.Mutex
 	configService *config.ConfigService
-	sqlConns      map[string]*sql.DB   // key: datasource::database
-	esClients     map[string]*ESClient // key: datasource
+	sqlConns      map[string]*sql.DB       // key: datasource::database
+	nonSQLClients map[string]NonSQLClient  // key: datasource
 
 	healthCancel context.CancelFunc
 	healthDone   chan struct{}
@@ -29,7 +29,7 @@ func NewConnectionService(configService *config.ConfigService) *ConnectionServic
 	return &ConnectionService{
 		configService: configService,
 		sqlConns:      make(map[string]*sql.DB),
-		esClients:     make(map[string]*ESClient),
+		nonSQLClients: make(map[string]NonSQLClient),
 	}
 }
 
@@ -42,8 +42,8 @@ func (cs *ConnectionService) GetSQLDB(datasourceName, database string) (*sql.DB,
 	if err != nil {
 		return nil, nil, err
 	}
-	if cfg.Type == models.DatabaseTypeElasticsearch {
-		return nil, cfg, fmt.Errorf("datasource '%s' is Elasticsearch; use GetESClient", datasourceName)
+	if IsNonSQLType(cfg.Type) {
+		return nil, cfg, fmt.Errorf("datasource '%s' is %s; use GetNonSQLClient", datasourceName, cfg.Type)
 	}
 
 	db := database
@@ -108,26 +108,59 @@ func (cs *ConnectionService) GetSQLDB(datasourceName, database string) (*sql.DB,
 	return conn, cfg, nil
 }
 
-// GetESClient returns a cached ES client.
-func (cs *ConnectionService) GetESClient(datasourceName string) (*ESClient, *models.DatasourceConfig, error) {
+// newNonSQLClient creates a NonSQLClient for the given datasource config.
+func newNonSQLClient(cfg *models.DatasourceConfig) (NonSQLClient, error) {
+	switch cfg.Type {
+	case models.DatabaseTypeElasticsearch:
+		return NewESClient(cfg), nil
+	case models.DatabaseTypeRedis:
+		return NewRedisClient(cfg)
+	case models.DatabaseTypeMongoDB:
+		return NewMongoClient(cfg)
+	case models.DatabaseTypeMilvus:
+		return NewMilvusClient(cfg)
+	default:
+		return nil, fmt.Errorf("unsupported non-SQL type: %s", cfg.Type)
+	}
+}
+
+// GetNonSQLClient returns a cached NonSQLClient for the given datasource.
+func (cs *ConnectionService) GetNonSQLClient(datasourceName string) (NonSQLClient, *models.DatasourceConfig, error) {
 	cfg, err := cs.configService.GetDatasource(datasourceName)
 	if err != nil {
 		return nil, nil, err
 	}
-	if cfg.Type != models.DatabaseTypeElasticsearch {
-		return nil, cfg, fmt.Errorf("datasource '%s' is not Elasticsearch", datasourceName)
+	if !IsNonSQLType(cfg.Type) {
+		return nil, cfg, fmt.Errorf("datasource '%s' is not a non-SQL type", datasourceName)
 	}
 
 	cs.mu.Lock()
 	defer cs.mu.Unlock()
 
-	if client, ok := cs.esClients[datasourceName]; ok {
+	if client, ok := cs.nonSQLClients[datasourceName]; ok {
 		return client, cfg, nil
 	}
 
-	client := NewESClient(cfg)
-	cs.esClients[datasourceName] = client
+	client, err := newNonSQLClient(cfg)
+	if err != nil {
+		return nil, cfg, err
+	}
+	cs.nonSQLClients[datasourceName] = client
 	return client, cfg, nil
+}
+
+// GetESClient returns a cached ES client. Kept for backward compatibility;
+// prefer GetNonSQLClient for new code.
+func (cs *ConnectionService) GetESClient(datasourceName string) (*ESClient, *models.DatasourceConfig, error) {
+	client, cfg, err := cs.GetNonSQLClient(datasourceName)
+	if err != nil {
+		return nil, cfg, err
+	}
+	es, ok := client.(*ESClient)
+	if !ok {
+		return nil, cfg, fmt.Errorf("datasource '%s' is not Elasticsearch", datasourceName)
+	}
+	return es, cfg, nil
 }
 
 // Invalidate removes all cached connections for the given datasource and
@@ -143,9 +176,9 @@ func (cs *ConnectionService) Invalidate(datasourceName string) {
 			delete(cs.sqlConns, key)
 		}
 	}
-	if client, ok := cs.esClients[datasourceName]; ok {
+	if client, ok := cs.nonSQLClients[datasourceName]; ok {
 		_ = client.Close()
-		delete(cs.esClients, datasourceName)
+		delete(cs.nonSQLClients, datasourceName)
 	}
 }
 
@@ -158,9 +191,9 @@ func (cs *ConnectionService) InvalidateAll() {
 		_ = conn.Close()
 		delete(cs.sqlConns, key)
 	}
-	for key, client := range cs.esClients {
+	for key, client := range cs.nonSQLClients {
 		_ = client.Close()
-		delete(cs.esClients, key)
+		delete(cs.nonSQLClients, key)
 	}
 }
 
@@ -265,18 +298,18 @@ func (cs *ConnectionService) DisposeAll() error {
 	}
 	cs.sqlConns = make(map[string]*sql.DB)
 
-	for _, client := range cs.esClients {
+	for _, client := range cs.nonSQLClients {
 		_ = client.Close()
 	}
-	cs.esClients = make(map[string]*ESClient)
+	cs.nonSQLClients = make(map[string]NonSQLClient)
 	return nil
 }
 
 func driverNameFor(t models.DatabaseType) string {
 	switch t {
-	case models.DatabaseTypeMySQL:
+	case models.DatabaseTypeMySQL, models.DatabaseTypeTiDB:
 		return "mysql"
-	case models.DatabaseTypePostgreSQL:
+	case models.DatabaseTypePostgreSQL, models.DatabaseTypeGaussDB:
 		return "postgres"
 	case models.DatabaseTypeSQLite:
 		return "sqlite"
@@ -286,6 +319,8 @@ func driverNameFor(t models.DatabaseType) string {
 		return "sqlserver"
 	case models.DatabaseTypeHive:
 		return "hive"
+	case models.DatabaseTypeOracle:
+		return "oracle"
 	default:
 		return string(t)
 	}
