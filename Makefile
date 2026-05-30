@@ -5,7 +5,7 @@ BUILD_DIR := bin
 VERSION ?= 0.1.0
 LDFLAGS := -X main.version=$(VERSION) -s -w
 
-.PHONY: all build run-all run-api run-mcp test tidy fmt vet lint clean install
+.PHONY: all build run-all run-api run-mcp test test-unit test-integration test-sqlite test-coverage tidy fmt vet lint clean install
 
 all: build
 
@@ -27,6 +27,19 @@ run-mcp: build
 
 test:
 	go test ./... -count=1
+
+test-unit:
+	go test ./internal/... -count=1 -v
+
+test-integration:
+	go test ./tests/integration/... -tags=integration -count=1 -v -timeout 10m
+
+test-sqlite:
+	go test ./tests/integration/... -run TestSQLite -count=1 -v
+
+test-coverage:
+	go test ./internal/... -count=1 -coverprofile=coverage.out
+	go tool cover -html=coverage.out -o coverage.html
 
 tidy:
 	go mod tidy
