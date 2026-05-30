@@ -109,7 +109,7 @@ func (c *ESClient) GetDatabases(ctx context.Context) ([]models.ObjectName, error
 // GetTableNames returns concrete indices (excluding system).
 // The database parameter is ignored for Elasticsearch.
 func (c *ESClient) GetTableNames(ctx context.Context, database string) ([]models.ObjectName, error) {
-	resp, err := c.doRequest(ctx, "GET", "/_alias/*?expand_wildcards=open", nil)
+	resp, err := c.doRequest(ctx, "GET", "/_all/_alias", nil)
 	if err != nil {
 		return nil, err
 	}

@@ -1,0 +1,21 @@
+
+kind: tool
+name: query_active_users
+description: "查询指定日期后创建的用户数量"
+datasource: example
+database: main
+template: |
+  SELECT COUNT(*) as active_count
+  FROM users
+  WHERE created_at > :since_date
+parameters:
+  - name: since_date
+    type: string
+    description: "起始日期，格式 YYYY-MM-DD"
+    required: true
+---
+kind: toolset
+name: user_analytics
+description: "用户分析工具集"
+tools:
+  - query_active_users

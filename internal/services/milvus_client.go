@@ -196,7 +196,7 @@ func (c *MilvusClient) executeVectorSearch(ctx context.Context, collName string,
 	return searchResultsToQueryResult(results, limit, start)
 }
 
-func columnResultSetToQueryResult(rs []client.ResultSet, limit int, start time.Time) (*models.QueryResult, error) {
+func columnResultSetToQueryResult(rs client.ResultSet, limit int, start time.Time) (*models.QueryResult, error) {
 	if len(rs) == 0 {
 		elapsedMs := float64(time.Since(start).Microseconds()) / 1000.0
 		return &models.QueryResult{
@@ -227,7 +227,8 @@ func columnResultSetToQueryResult(rs []client.ResultSet, limit int, start time.T
 	for r := 0; r < rowCount; r++ {
 		row := make([]any, len(rs))
 		for c, col := range rs {
-			row[c] = fmt.Sprintf("%v", col.Get(r))
+			v, _ := col.Get(r)
+			row[c] = fmt.Sprintf("%v", v)
 		}
 		rows[r] = serializeRow(row)
 	}
@@ -278,7 +279,8 @@ func searchResultsToQueryResult(results []client.SearchResult, limit int, start 
 		for c, name := range columnNames {
 			switch name {
 			case "id":
-				row[c] = fmt.Sprintf("%v", result.IDs.GetAsInt64(r))
+				idVal, _ := result.IDs.GetAsInt64(r)
+				row[c] = fmt.Sprintf("%v", idVal)
 			case "score":
 				if r < len(result.Scores) {
 					row[c] = result.Scores[r]
@@ -286,7 +288,8 @@ func searchResultsToQueryResult(results []client.SearchResult, limit int, start 
 			default:
 				for _, col := range result.Fields {
 					if col.Name() == name {
-						row[c] = fmt.Sprintf("%v", col.Get(r))
+						v, _ := col.Get(r)
+						row[c] = fmt.Sprintf("%v", v)
 						break
 					}
 				}

@@ -1,8 +1,6 @@
 package dialects
 
 import (
-	"fmt"
-
 	"github.com/gnodux/adb-link/internal/models"
 )
 

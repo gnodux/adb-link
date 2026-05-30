@@ -1,0 +1,88 @@
+kind: datasource
+name: mysql-test
+type: mysql
+description: "测试mysql"
+connection:
+  host: 127.0.0.1
+  port: 3306
+  username: readonlyuser
+  password: ${DEFAULT_PASSWORD}
+  default_database: sys
+options:
+  pool_size: 5
+  pool_pre_ping: true      
+  pool_recycle: 3600       
+---
+kind: datasource
+name: mysql-test
+type: clickhouse
+description: "测试clickhouse"
+connection:
+  host: 127.0.0.1
+  port: 19100
+---
+kind: datasource
+name: es-test
+enable: false
+type: elasticsearch
+description: "测试ES"
+connection:
+  host: 127.0.0.1
+  port: 19200
+  username: elastic
+  password: ${DEFAULT_PASSWORD}
+options:
+  use_ssl: false
+  verify_certs: false
+  request_timeout: 30
+---
+name: mssql-dev
+type: mssql
+enable: false
+description: "测试SQL Server"
+connection:
+  host: 127.0.0.1
+  port: 1433
+  username: sa
+  password: ${DEFAULT_PASSWORD}
+  default_database: master
+options:
+  driver: "ODBC Driver 18 for SQL Server"
+  trust_server_certificate: true
+  pool_size: 5
+  pool_recycle: 3600
+---
+kind: datasource
+name: example
+type: sqlite
+description: "Example SQLite datasource for testing"
+connection:
+  path: ./data/example.db
+options:
+  pool_size: 1
+---
+kind: datasource
+name: hive-test
+type: hive
+enable: true
+description: "Hadoop Hive on HiveServer2"
+connection:
+  host: 127.0.0.1
+  port: 10000
+  default_database: default
+options:
+  auth: NONE
+  connect_timeout: 30
+---
+kind: datasource
+name: pg-local
+type: postgresql
+description: "本地 PostgreSQL 测试库"
+connection:
+  host: 127.0.0.1
+  port: 15432
+  username: postgres
+  password: ${DEFAULT_PASSWORD}
+  default_database: postgres
+options:
+  pool_size: 5

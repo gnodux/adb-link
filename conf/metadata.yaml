@@ -1,0 +1,18 @@
+kind: metadata
+datasource: example
+tables:
+  users:
+    comment: "Main user table, storing all registered user information"
+    columns:
+      id:
+        comment: "Unique user identifier"
+      name:
+        comment: "User name"
+      email:
+        comment: "User email address"
+views:
+  active_users_view:
+    comment: "Active users view, showing users who logged in within the last 30 days"
+databases:
+  main:
+    comment: "Main database"

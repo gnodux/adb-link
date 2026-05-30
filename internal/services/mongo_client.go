@@ -234,7 +234,7 @@ func (c *MongoClient) executeFind(ctx context.Context, coll *mongo.Collection, r
 	}
 	defer cursor.Close(ctx)
 
-	return c.cursorToResult(cursor, limit, start)
+	return c.cursorToResult(ctx, cursor, limit, start)
 }
 
 func (c *MongoClient) executeAggregation(ctx context.Context, coll *mongo.Collection, pipeline any, limit int, start time.Time) (*models.QueryResult, error) {
@@ -255,10 +255,10 @@ func (c *MongoClient) executeAggregation(ctx context.Context, coll *mongo.Collec
 	}
 	defer cursor.Close(ctx)
 
-	return c.cursorToResult(cursor, limit, start)
+	return c.cursorToResult(ctx, cursor, limit, start)
 }
 
-func (c *MongoClient) cursorToResult(cursor *mongo.Cursor, limit int, start time.Time) (*models.QueryResult, error) {
+func (c *MongoClient) cursorToResult(ctx context.Context, cursor *mongo.Cursor, limit int, start time.Time) (*models.QueryResult, error) {
 	var docs []bson.M
 	for cursor.Next(ctx) {
 		var doc bson.M

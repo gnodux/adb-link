@@ -1,0 +1,7 @@
+kind: auth_api
+users:
+  - name: gnodux
+    group: admin
+    api_key: ${DEFAULT_TOKEN}
+    email: "admin@adb-link.com"
+    description: "管理员"
