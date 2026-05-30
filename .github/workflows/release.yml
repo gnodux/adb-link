@@ -1,0 +1,108 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          VERSION=${GITHUB_REF_NAME}
+          EXT=""
+          [ "${{ matrix.goos }}" = "windows" ] && EXT=".exe"
+          OUTPUT="adb-link-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}"
+          go build -ldflags "-X main.version=${VERSION} -s -w" -o "${OUTPUT}" ./cmd/adb-link
+          echo "OUTPUT=${OUTPUT}" >> "$GITHUB_ENV"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.OUTPUT }}
+          path: ${{ env.OUTPUT }}
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          cd artifacts
+          sha256sum * > checksums.txt
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREV_TAG=$(git tag --sort=-v:refname | grep -v "^${GITHUB_REF_NAME}$" | head -1)
+          if [ -n "$PREV_TAG" ]; then
+            LOG=$(git log --pretty=format:"- %s (%h)" "${PREV_TAG}..${GITHUB_REF_NAME}")
+          else
+            LOG=$(git log --pretty=format:"- %s (%h)" "${GITHUB_REF_NAME}")
+          fi
+          {
+            echo "body<<CHANGELOG_EOF"
+            echo "## What's Changed"
+            echo ""
+            echo "$LOG"
+            echo ""
+            echo "## Binaries"
+            echo ""
+            echo "| Platform | File |"
+            echo "|----------|------|"
+            for f in artifacts/adb-link-*; do
+              NAME=$(basename "$f")
+              echo "| ${NAME#adb-link-${GITHUB_REF_NAME}-} | \`${NAME}\` |"
+            done
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: adb-link ${{ github.ref_name }}
+          body: ${{ steps.changelog.outputs.body }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: |
+            artifacts/adb-link-*
+            artifacts/checksums.txt

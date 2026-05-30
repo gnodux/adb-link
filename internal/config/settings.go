@@ -19,7 +19,7 @@ type Settings struct {
 // DefaultSettings returns settings with defaults, overridden by env vars.
 func DefaultSettings() *Settings {
 	s := &Settings{
-		ConfigDir:     envOrDefault("ADB_LINK_CONFIG_DIR", "config"),
+		ConfigDir:     envOrDefault("ADB_LINK_CONFIG_DIR", "conf"),
 		APIHost:       envOrDefault("ADB_LINK_API_HOST", "0.0.0.0"),
 		APIPort:       envOrDefaultInt("ADB_LINK_API_PORT", 8000),
 		LogLevel:      envOrDefault("ADB_LINK_LOG_LEVEL", "INFO"),

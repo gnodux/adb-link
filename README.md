@@ -102,7 +102,7 @@ curl -s -X POST http://localhost:8000/mcp \
       }
     }
   }'
-# => {"success":true, "name":"query_recent_users", "persisted_to":"config/tool-query_recent_users.yaml"}
+# => {"success":true, "name":"query_recent_users", "persisted_to":"conf/tool-query_recent_users.yaml"}
 
 # 7. Call the registered tool
 curl -s -X POST http://localhost:8000/mcp \
@@ -154,10 +154,10 @@ go install github.com/gnodux/adb-link/cmd/adb-link@latest
 
 ### Configure
 
-Create a `config/` directory with your datasource definitions:
+Create a `conf/` directory with your datasource definitions:
 
 ```yaml
-# config/datasource.yaml
+# conf/datasource.yaml
 kind: datasource
 name: my-postgres
 type: postgresql
@@ -175,7 +175,7 @@ options:
 Add authentication (optional but recommended):
 
 ```yaml
-# config/auth.yaml
+# conf/auth.yaml
 kind: auth
 users:
   - name: admin
@@ -282,7 +282,7 @@ All MCP tools are available via `tools/call`:
 
 ### Configuration
 
-All configuration is YAML-based in the `config/` directory:
+All configuration is YAML-based in the `conf/` directory:
 
 | File | Kind | Purpose |
 |------|------|---------|
@@ -298,7 +298,7 @@ Environment variables are supported via `${VAR_NAME}` syntax. Configuration chan
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `ADB_LINK_CONFIG_DIR` | `./config` | Config directory path |
+| `ADB_LINK_CONFIG_DIR` | `./conf` | Config directory path |
 | `ADB_LINK_API_HOST` | `0.0.0.0` | API bind address |
 | `ADB_LINK_API_PORT` | `8000` | API bind port |
 | `ADB_LINK_LOG_LEVEL` | `info` | Log level |
