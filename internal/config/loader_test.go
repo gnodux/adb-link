@@ -438,3 +438,130 @@ databases:
 		t.Errorf("datasource = %q", meta[0].Datasource)
 	}
 }
+
+func TestRegisterDatasource_AppearsInList(t *testing.T) {
+	dir := t.TempDir()
+	cs := newTestConfigService(t, dir)
+	cfg := &models.DatasourceConfig{
+		Name: "dynamic-ds",
+		Type: models.DatabaseTypeSQLite,
+		Connection: models.ConnectionConfig{Path: "./test.db"},
+	}
+	cs.RegisterDatasource(cfg)
+	dss := cs.ListDatasources()
+	if len(dss) != 1 || dss[0].Name != "dynamic-ds" {
+		t.Errorf("expected dynamic-ds, got %v", dss)
+	}
+}
+
+func TestRegisterDatasource_GetDatasource(t *testing.T) {
+	dir := t.TempDir()
+	cs := newTestConfigService(t, dir)
+	cfg := &models.DatasourceConfig{
+		Name:        "dyn-pg",
+		Type:        models.DatabaseTypePostgreSQL,
+		Description: "dynamic pg",
+		Connection:  models.ConnectionConfig{Host: "10.0.0.1", Port: 5432},
+	}
+	cs.RegisterDatasource(cfg)
+	got, err := cs.GetDatasource("dyn-pg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Description != "dynamic pg" {
+		t.Errorf("description = %q", got.Description)
+	}
+	if got.Connection.Host != "10.0.0.1" {
+		t.Errorf("host = %q", got.Connection.Host)
+	}
+}
+
+func TestUnregisterDatasource_RemovesDatasource(t *testing.T) {
+	dir := t.TempDir()
+	cs := newTestConfigService(t, dir)
+	cs.RegisterDatasource(&models.DatasourceConfig{Name: "rm-ds", Type: models.DatabaseTypeMySQL})
+	removed := cs.UnregisterDatasource("rm-ds")
+	if removed == nil || removed.Name != "rm-ds" {
+		t.Errorf("expected removed datasource, got %v", removed)
+	}
+	if len(cs.ListDatasources()) != 0 {
+		t.Error("datasource should be removed")
+	}
+}
+
+func TestUnregisterDatasource_NonExistent_ReturnsNil(t *testing.T) {
+	dir := t.TempDir()
+	cs := newTestConfigService(t, dir)
+	if got := cs.UnregisterDatasource("ghost"); got != nil {
+		t.Errorf("expected nil, got %v", got)
+	}
+}
+
+func TestPersistDatasource_WritesYAMLFile(t *testing.T) {
+	dir := t.TempDir()
+	cs := newTestConfigService(t, dir)
+	cfg := &models.DatasourceConfig{
+		Name: "persist-ds",
+		Type: models.DatabaseTypeMySQL,
+		Connection: models.ConnectionConfig{Host: "localhost", Port: 3306},
+	}
+	path, err := cs.PersistDatasource(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Errorf("file should exist: %v", err)
+	}
+}
+
+func TestPersistDatasource_RoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	cs := newTestConfigService(t, dir)
+	cfg := &models.DatasourceConfig{
+		Name:        "rt-ds",
+		Type:        models.DatabaseTypePostgreSQL,
+		Description: "round trip ds",
+		Connection:  models.ConnectionConfig{Host: "db.example.com", Port: 5432, Username: "user1"},
+	}
+	if _, err := cs.PersistDatasource(cfg); err != nil {
+		t.Fatal(err)
+	}
+	// Reload should pick up the persisted file
+	if err := cs.Reload(); err != nil {
+		t.Fatal(err)
+	}
+	got, err := cs.GetDatasource("rt-ds")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Description != "round trip ds" {
+		t.Errorf("description = %q", got.Description)
+	}
+	if got.Connection.Host != "db.example.com" {
+		t.Errorf("host = %q", got.Connection.Host)
+	}
+	if got.Connection.Username != "user1" {
+		t.Errorf("username = %q", got.Connection.Username)
+	}
+}
+
+func TestRemoveDatasourceFile_DeletesFile(t *testing.T) {
+	dir := t.TempDir()
+	cs := newTestConfigService(t, dir)
+	cs.PersistDatasource(&models.DatasourceConfig{Name: "del-ds", Type: models.DatabaseTypeMySQL})
+	if !cs.RemoveDatasourceFile("del-ds") {
+		t.Error("expected true")
+	}
+	path := filepath.Join(dir, "datasource-del-ds.yaml")
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Error("file should be deleted")
+	}
+}
+
+func TestRemoveDatasourceFile_NonExistent_ReturnsFalse(t *testing.T) {
+	dir := t.TempDir()
+	cs := newTestConfigService(t, dir)
+	if cs.RemoveDatasourceFile("nope") {
+		t.Error("expected false for non-existent file")
+	}
+}

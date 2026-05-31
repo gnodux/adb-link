@@ -200,6 +200,55 @@ func (cs *ConfigService) RemoveToolFile(name string) bool {
 	return true
 }
 
+// RegisterDatasource stores a new datasource definition by swapping in a snapshot
+// whose Datasources map contains the addition.
+func (cs *ConfigService) RegisterDatasource(cfg *models.DatasourceConfig) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	cur := cs.snapshot()
+	next := cloneSnapshot(cur)
+	next.Datasources[cfg.Name] = cfg
+	cs.snap.Store(next)
+}
+
+// UnregisterDatasource removes a datasource definition. Returns the removed config, or nil.
+func (cs *ConfigService) UnregisterDatasource(name string) *models.DatasourceConfig {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	cur := cs.snapshot()
+	cfg, ok := cur.Datasources[name]
+	if !ok {
+		return nil
+	}
+	next := cloneSnapshot(cur)
+	delete(next.Datasources, name)
+	cs.snap.Store(next)
+	return cfg
+}
+
+// PersistDatasource writes a datasource config to a YAML file.
+func (cs *ConfigService) PersistDatasource(cfg *models.DatasourceConfig) (string, error) {
+	filePath := filepath.Join(cs.configDir, fmt.Sprintf("datasource-%s.yaml", cfg.Name))
+	cfg.Kind = "datasource"
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(filePath, data, 0644); err != nil {
+		return "", err
+	}
+	return filePath, nil
+}
+
+// RemoveDatasourceFile removes the persisted YAML file for a datasource.
+func (cs *ConfigService) RemoveDatasourceFile(name string) bool {
+	filePath := filepath.Join(cs.configDir, fmt.Sprintf("datasource-%s.yaml", name))
+	if err := os.Remove(filePath); err != nil {
+		return false
+	}
+	return true
+}
+
 // Reload re-reads every YAML file in the configured directory and atomically
 // swaps the in-memory snapshot. Reload is safe to call concurrently with
 // readers; readers either see the prior or new snapshot, never a torn view.

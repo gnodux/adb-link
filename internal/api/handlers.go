@@ -527,6 +527,110 @@ func (h *Handlers) UnregisterTool(w http.ResponseWriter, r *http.Request) {
 	WriteOK(w, map[string]string{"name": req.Name})
 }
 
+// --- Dynamic Datasource Registration ---
+
+type datasourceRegisterRequest struct {
+	Name        string                  `json:"name"`
+	Type        models.DatabaseType     `json:"type"`
+	Description string                  `json:"description,omitempty"`
+	Connection  models.ConnectionConfig `json:"connection"`
+	Options     map[string]any          `json:"options,omitempty"`
+}
+
+type datasourceUnregisterRequest struct {
+	Name string `json:"name"`
+}
+
+func (h *Handlers) RegisterDatasource(w http.ResponseWriter, r *http.Request) {
+	var req datasourceRegisterRequest
+	if err := DecodeJSON(r, &req); err != nil {
+		WriteError(w, err.Error())
+		return
+	}
+	if req.Name == "" {
+		WriteErrorStatus(w, http.StatusBadRequest, "name is required")
+		return
+	}
+	if _, err := h.Container.ConfigService.GetDatasource(req.Name); err == nil {
+		WriteErrorStatus(w, http.StatusConflict,
+			"Datasource '"+req.Name+"' already exists. Use /datasources/unregister first.")
+		return
+	}
+	cfg := &models.DatasourceConfig{
+		Kind:        "datasource",
+		Name:        req.Name,
+		Type:        req.Type,
+		Description: req.Description,
+		Connection:  req.Connection,
+		Options:     req.Options,
+	}
+	// Register to snapshot first so ConnectionService can resolve it.
+	h.Container.ConfigService.RegisterDatasource(cfg)
+
+	// Validate connection.
+	if services.IsNonSQLType(cfg.Type) {
+		client, _, err := h.Container.ConnectionService.GetNonSQLClient(req.Name)
+		if err != nil {
+			h.Container.ConfigService.UnregisterDatasource(req.Name)
+			WriteErrorStatus(w, http.StatusBadRequest,
+				"Connection validation failed: "+err.Error())
+			return
+		}
+		if err := client.Ping(r.Context()); err != nil {
+			h.Container.ConfigService.UnregisterDatasource(req.Name)
+			h.Container.ConnectionService.Invalidate(req.Name)
+			WriteErrorStatus(w, http.StatusBadRequest,
+				"Connection validation failed: "+err.Error())
+			return
+		}
+	} else {
+		db, _, err := h.Container.ConnectionService.GetSQLDB(req.Name, "")
+		if err != nil {
+			h.Container.ConfigService.UnregisterDatasource(req.Name)
+			WriteErrorStatus(w, http.StatusBadRequest,
+				"Connection validation failed: "+err.Error())
+			return
+		}
+		if err := db.PingContext(r.Context()); err != nil {
+			h.Container.ConfigService.UnregisterDatasource(req.Name)
+			h.Container.ConnectionService.Invalidate(req.Name)
+			WriteErrorStatus(w, http.StatusBadRequest,
+				"Connection validation failed: "+err.Error())
+			return
+		}
+	}
+	// Release the validation connection; it will be re-opened on first use.
+	h.Container.ConnectionService.Invalidate(req.Name)
+
+	filePath, err := h.Container.ConfigService.PersistDatasource(cfg)
+	if err != nil {
+		WriteErrorStatus(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	user := UserNameFromRequest(r)
+	services.AuditLog().Printf("user=%s | action=register_datasource | datasource=%s | type=%s",
+		user, req.Name, req.Type)
+	WriteOK(w, map[string]string{"name": req.Name, "persisted_to": filePath})
+}
+
+func (h *Handlers) UnregisterDatasource(w http.ResponseWriter, r *http.Request) {
+	var req datasourceUnregisterRequest
+	if err := DecodeJSON(r, &req); err != nil {
+		WriteError(w, err.Error())
+		return
+	}
+	if _, err := h.Container.ConfigService.GetDatasource(req.Name); err != nil {
+		WriteErrorStatus(w, http.StatusNotFound, "Datasource '"+req.Name+"' not found")
+		return
+	}
+	h.Container.ConfigService.UnregisterDatasource(req.Name)
+	h.Container.ConnectionService.Invalidate(req.Name)
+	h.Container.ConfigService.RemoveDatasourceFile(req.Name)
+	user := UserNameFromRequest(r)
+	services.AuditLog().Printf("user=%s | action=unregister_datasource | datasource=%s", user, req.Name)
+	WriteOK(w, map[string]string{"name": req.Name})
+}
+
 // Health is the liveness endpoint.
 func (h *Handlers) Health(w http.ResponseWriter, _ *http.Request) {
 	WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})

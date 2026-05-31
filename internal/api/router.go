@@ -24,6 +24,8 @@ func NewRouterWithMCP(c *services.Container, mcpHandler http.Handler) http.Handl
 	mux.HandleFunc("POST /api/datasources/list", h.ListDatasources)
 	mux.HandleFunc("POST /api/datasources/detail", h.DatasourceDetail)
 	mux.HandleFunc("POST /api/datasources/test", h.DatasourceTest)
+	mux.HandleFunc("POST /api/datasources/register", h.RegisterDatasource)
+	mux.HandleFunc("POST /api/datasources/unregister", h.UnregisterDatasource)
 
 	// Schema
 	mux.HandleFunc("POST /api/databases/list", h.ListDatabases)

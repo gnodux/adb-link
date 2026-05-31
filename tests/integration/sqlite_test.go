@@ -283,3 +283,90 @@ func TestSQLite_SchemaService_GetTableInfo(t *testing.T) {
 		t.Errorf("expected 4 columns, got %d", len(info.Columns))
 	}
 }
+
+// --- Dynamic Datasource Registration ---
+
+func TestSQLite_DynamicDatasource_RegisterAndUnregister(t *testing.T) {
+	_, cs, dir := setupSQLite(t)
+	conn := services.NewConnectionService(cs)
+	t.Cleanup(func() { conn.DisposeAll() })
+
+	// Create a second SQLite file for the dynamic datasource.
+	db2Path := filepath.Join(dir, "dynamic.db")
+	db2, err := sql.Open("sqlite", db2Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db2.Exec("CREATE TABLE dynamic_test (id INTEGER PRIMARY KEY, val TEXT)"); err != nil {
+		t.Fatal(err)
+	}
+	db2.Close()
+
+	// 1. Register a new datasource dynamically.
+	newCfg := &models.DatasourceConfig{
+		Name:        "dynamic-sqlite",
+		Type:        models.DatabaseTypeSQLite,
+		Description: "dynamically added sqlite",
+		Connection:  models.ConnectionConfig{Path: db2Path},
+	}
+	cs.RegisterDatasource(newCfg)
+
+	// 2. Validate connection via ConnectionService.
+	db, _, err := conn.GetSQLDB("dynamic-sqlite", "")
+	if err != nil {
+		t.Fatalf("connection validation failed: %v", err)
+	}
+	if err := db.PingContext(context.Background()); err != nil {
+		t.Fatalf("ping failed: %v", err)
+	}
+	conn.Invalidate("dynamic-sqlite")
+
+	// 3. Persist to YAML.
+	filePath, err := cs.PersistDatasource(newCfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filePath); err != nil {
+		t.Errorf("persisted file should exist: %v", err)
+	}
+
+	// 4. Verify it appears in ListDatasources.
+	found := false
+	for _, ds := range cs.ListDatasources() {
+		if ds.Name == "dynamic-sqlite" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("dynamic-sqlite should appear in ListDatasources")
+	}
+
+	// 5. Reload — datasource should survive because it was persisted.
+	if err := cs.Reload(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cs.GetDatasource("dynamic-sqlite"); err != nil {
+		t.Errorf("dynamic-sqlite should survive reload: %v", err)
+	}
+
+	// 6. Unregister: remove from snapshot, delete file.
+	removed := cs.UnregisterDatasource("dynamic-sqlite")
+	if removed == nil {
+		t.Fatal("expected removed config")
+	}
+	conn.Invalidate("dynamic-sqlite")
+	cs.RemoveDatasourceFile("dynamic-sqlite")
+
+	if _, err := os.Stat(filePath); !os.IsNotExist(err) {
+		t.Error("persisted file should be deleted after unregister")
+	}
+
+	// 7. Reload — datasource should be gone.
+	if err := cs.Reload(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cs.GetDatasource("dynamic-sqlite"); err == nil {
+		t.Error("dynamic-sqlite should not survive after unregister + reload")
+	}
+}

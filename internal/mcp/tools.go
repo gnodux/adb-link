@@ -325,6 +325,100 @@ func RegisterCoreTools(srv *Server, c *services.Container) {
 		services.AuditLog().Printf("user=%s | action=unregister_tool | tool=%s", userFromCtx(ctx), name)
 		return jsonString(map[string]any{"success": true, "name": name})
 	})
+
+	// register_datasource
+	srv.RegisterTool(Tool{
+		Name:        "register_datasource",
+		Description: "Dynamically register a new datasource. The connection is validated before registration. The datasource is persisted to config.",
+		InputSchema: schemaObject(map[string]any{
+			"name":        prop("string", "Datasource name (unique identifier)"),
+			"type":        prop("string", "Database type: mysql, postgresql, sqlite, clickhouse, mssql, elasticsearch, hive, gaussdb, redis, mongodb, milvus, oracle, tidb"),
+			"description": propWithDefault("string", "Datasource description", ""),
+			"connection":  prop("object", "Connection config: {host, port, username, password, default_database, path}"),
+			"options":     prop("object", "Additional options (pool_size, etc.)"),
+		}, []string{"name", "type", "connection"}),
+	}, func(ctx context.Context, args map[string]any) (string, error) {
+		name := stringArg(args, "name")
+		if name == "" {
+			return jsonString(map[string]any{"success": false, "error": "name is required"})
+		}
+		if _, err := c.ConfigService.GetDatasource(name); err == nil {
+			return jsonString(map[string]any{"success": false, "error": "Datasource '" + name + "' already exists"})
+		}
+		var conn models.ConnectionConfig
+		switch v := args["connection"].(type) {
+		case map[string]any:
+			b, _ := json.Marshal(v)
+			_ = json.Unmarshal(b, &conn)
+		case string:
+			_ = json.Unmarshal([]byte(v), &conn)
+		default:
+			return jsonString(map[string]any{"success": false, "error": "connection must be an object"})
+		}
+		var options map[string]any
+		if v, ok := args["options"].(map[string]any); ok {
+			options = v
+		}
+		cfg := &models.DatasourceConfig{
+			Kind:        "datasource",
+			Name:        name,
+			Type:        models.DatabaseType(stringArg(args, "type")),
+			Description: stringArg(args, "description"),
+			Connection:  conn,
+			Options:     options,
+		}
+		c.ConfigService.RegisterDatasource(cfg)
+		if services.IsNonSQLType(cfg.Type) {
+			client, _, err := c.ConnectionService.GetNonSQLClient(name)
+			if err != nil {
+				c.ConfigService.UnregisterDatasource(name)
+				return jsonString(map[string]any{"success": false, "error": "Connection validation failed: " + err.Error()})
+			}
+			if err := client.Ping(ctx); err != nil {
+				c.ConfigService.UnregisterDatasource(name)
+				c.ConnectionService.Invalidate(name)
+				return jsonString(map[string]any{"success": false, "error": "Connection validation failed: " + err.Error()})
+			}
+		} else {
+			db, _, err := c.ConnectionService.GetSQLDB(name, "")
+			if err != nil {
+				c.ConfigService.UnregisterDatasource(name)
+				return jsonString(map[string]any{"success": false, "error": "Connection validation failed: " + err.Error()})
+			}
+			if err := db.PingContext(ctx); err != nil {
+				c.ConfigService.UnregisterDatasource(name)
+				c.ConnectionService.Invalidate(name)
+				return jsonString(map[string]any{"success": false, "error": "Connection validation failed: " + err.Error()})
+			}
+		}
+		c.ConnectionService.Invalidate(name)
+		filePath, err := c.ConfigService.PersistDatasource(cfg)
+		if err != nil {
+			return jsonString(map[string]any{"success": false, "error": err.Error()})
+		}
+		services.AuditLog().Printf("user=%s | action=register_datasource | datasource=%s | type=%s",
+			userFromCtx(ctx), name, cfg.Type)
+		return jsonString(map[string]any{"success": true, "name": name, "persisted_to": filePath})
+	})
+
+	// unregister_datasource
+	srv.RegisterTool(Tool{
+		Name:        "unregister_datasource",
+		Description: "Unregister a datasource. Removes it from memory, closes connections, and deletes the config file.",
+		InputSchema: schemaObject(map[string]any{
+			"name": prop("string", "Name of the datasource to unregister"),
+		}, []string{"name"}),
+	}, func(ctx context.Context, args map[string]any) (string, error) {
+		name := stringArg(args, "name")
+		if _, err := c.ConfigService.GetDatasource(name); err != nil {
+			return jsonString(map[string]any{"success": false, "error": "Datasource '" + name + "' not found"})
+		}
+		c.ConfigService.UnregisterDatasource(name)
+		c.ConnectionService.Invalidate(name)
+		c.ConfigService.RemoveDatasourceFile(name)
+		services.AuditLog().Printf("user=%s | action=unregister_datasource | datasource=%s", userFromCtx(ctx), name)
+		return jsonString(map[string]any{"success": true, "name": name})
+	})
 }
 
 // RegisterDynamicTools registers all YAML-configured tools as MCP tools.
