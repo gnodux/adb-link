@@ -382,7 +382,7 @@ connection:
 func TestAllAuthUsers_KeyedByAPIKey(t *testing.T) {
 	dir := t.TempDir()
 	writeYAML(t, dir, "auth.yaml", `
-kind: auth_api
+kind: users
 users:
   - name: alice
     api_key: key-alice

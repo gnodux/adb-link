@@ -4,9 +4,9 @@
 
 **Bridging AI Agents to Your Databases**
 
-A lightweight, high-performance database gateway designed for AI agents — providing unified SQL access, schema discovery, and tool orchestration across multiple database engines via REST API and MCP (Model Context Protocol).
+A lightweight, high-performance database gateway designed for AI agents — providing unified SQL access, schema discovery, and tool orchestration across 13 database engines via REST API and MCP (Model Context Protocol).
 
-[![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat-square&logo=go)](https://go.dev)
+[![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?style=flat-square&logo=go)](https://go.dev)
 [![MCP](https://img.shields.io/badge/MCP-2024--11--05-blueviolet?style=flat-square)](https://modelcontextprotocol.io)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey?style=flat-square)]()
@@ -121,9 +121,10 @@ curl -s -X POST http://localhost:8000/mcp \
 
 | Feature | Description |
 |---------|-------------|
-| **Multi-Database Support** | MySQL, PostgreSQL, ClickHouse, SQLite, SQL Server, Hive |
+| **13 Database Engines** | MySQL, PostgreSQL, SQLite, ClickHouse, MSSQL, Elasticsearch, Hive, GaussDB, Oracle, TiDB, Redis, MongoDB, Milvus |
 | **MCP Protocol** | Full JSON-RPC 2.0 implementation (stdio + HTTP transport) |
-| **Dynamic Tool Registry** | Register/unregister query tools at runtime via API or MCP |
+| **Dynamic Datasource Registry** | Register/unregister datasources at runtime via API or MCP, with connection validation and config persistence |
+| **Dynamic Tool Registry** | Register/unregister parameterized query tools at runtime via API or MCP |
 | **Async Query Engine** | Submit long-running queries, poll status, retrieve results |
 | **Schema Discovery** | Databases, tables, views, columns with type & comment info |
 | **Hot Reload** | YAML config changes are detected and applied within seconds |
@@ -137,7 +138,7 @@ curl -s -X POST http://localhost:8000/mcp \
 
 ### Prerequisites
 
-- Go 1.22+ (for building from source)
+- Go 1.25+ (for building from source)
 - One or more supported databases accessible on the network
 
 ### Install
@@ -176,7 +177,7 @@ Add authentication (optional but recommended):
 
 ```yaml
 # conf/auth.yaml
-kind: auth
+kind: users
 users:
   - name: admin
     api_key: "your-secret-api-key"
@@ -202,6 +203,26 @@ users:
 curl http://localhost:8000/api/health
 # {"status":"ok"}
 ```
+
+---
+
+## Supported Databases
+
+| Type | `type` value | SQL Dialect | Non-SQL Client |
+|------|-------------|-------------|----------------|
+| MySQL | `mysql` | MySQL | — |
+| PostgreSQL | `postgresql` | PostgreSQL | — |
+| SQLite | `sqlite` | SQLite | — |
+| ClickHouse | `clickhouse` | ClickHouse | — |
+| SQL Server | `mssql` | MSSQL | — |
+| Elasticsearch | `elasticsearch` | JSON DSL | ESClient |
+| Hive | `hive` | HiveQL | — |
+| GaussDB | `gaussdb` | PostgreSQL-compat | — |
+| Oracle | `oracle` | Oracle | — |
+| TiDB | `tidb` | MySQL-compat | — |
+| Redis | `redis` | Redis commands | RedisClient |
+| MongoDB | `mongodb` | JSON filter/pipeline | MongoClient |
+| Milvus | `milvus` | JSON query/search | MilvusClient |
 
 ---
 
@@ -243,56 +264,175 @@ curl http://localhost:8000/api/health
 
 ### API Endpoints
 
+#### Health
+
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/health` | Liveness check |
-| POST | `/api/datasources/list` | List datasources |
-| POST | `/api/datasources/detail` | Datasource details |
-| POST | `/api/datasources/test` | Test connectivity |
+
+#### Datasources
+
+| Method | Path                          | Description                       |
+| --------| -------------------------------| -----------------------------------|
+| POST   | `/api/datasources/list`       | List all configured datasources   |
+| POST   | `/api/datasources/detail`     | Get datasource details            |
+| POST   | `/api/datasources/test`       | Test datasource connectivity      |
+| POST   | `/api/datasources/register`   | Dynamically register a datasource |
+| POST   | `/api/datasources/unregister` | Unregister a datasource           |
+
+#### Schema
+
+| Method | Path | Description |
+|--------|------|-------------|
 | POST | `/api/databases/list` | List databases |
-| POST | `/api/schema/get` | Full schema |
-| POST | `/api/schema/table` | Table info |
-| POST | `/api/schema/view` | View info |
-| POST | `/api/query/execute` | Execute SQL |
-| POST | `/api/query/explain` | Explain plan |
-| POST | `/api/async/query/submit` | Async query submit |
-| POST | `/api/async/query/status` | Async query status |
-| POST | `/api/async/query/result` | Async query result |
+| POST | `/api/schema/get` | Get full schema (tables + views) |
+| POST | `/api/schema/table` | Get table column info |
+| POST | `/api/schema/view` | Get view column info |
+
+#### Query
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/query/execute` | Execute SQL/query |
+| POST | `/api/query/explain` | Get execution plan |
+
+#### Async Query
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/async/query/submit` | Submit async query |
+| POST | `/api/async/query/status` | Poll async query status |
+| POST | `/api/async/query/result` | Retrieve async query result |
 | POST | `/api/async/query/cancel` | Cancel async query |
+
+#### Tools
+
+| Method | Path | Description |
+|--------|------|-------------|
 | GET | `/api/tools` | List registered tools |
-| POST | `/api/tool/register` | Register tool |
-| POST | `/api/tool/unregister` | Unregister tool |
-| POST | `/api/tool/{name}` | Execute tool |
-| POST | `/mcp` | MCP JSON-RPC endpoint |
+| POST | `/api/tool/register` | Register a new tool |
+| POST | `/api/tool/unregister` | Unregister a tool |
+| POST | `/api/tool/{name}` | Execute a tool |
+
+#### Async Tool Execution
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/tool/async/{name}/submit` | Submit async tool execution |
+| POST | `/api/tool/async/{name}/status` | Poll async tool status |
+| POST | `/api/tool/async/{name}/result` | Retrieve async tool result |
+| POST | `/api/tool/async/{name}/cancel` | Cancel async tool |
+
+#### MCP
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/mcp` | MCP JSON-RPC endpoint (HTTP transport) |
 
 ### MCP Tools
 
 All MCP tools are available via `tools/call`:
 
-- `list_datasources` — List all datasources
+**Schema & Query**
+- `list_datasources` — List all configured datasources
 - `list_databases` — List databases in a datasource
-- `get_schema` — Get full schema
+- `get_schema` — Get full schema (tables, views, columns)
 - `get_table_info` / `get_view_info` — Column details
-- `execute_query` — Run SQL
-- `explain_query` — Execution plan
-- `submit_async_query` — Async query
-- `get_async_query_status` / `get_async_query_result` — Poll async results
-- `register_tool` / `unregister_tool` — Dynamic tool management
-- *Any dynamically registered tool*
+- `execute_query` — Run SQL (or DSL for Elasticsearch, commands for Redis, filters for MongoDB/Milvus)
+- `explain_query` — Get execution plan (MySQL, PostgreSQL, SQLite, ClickHouse, GaussDB, TiDB, MSSQL)
+
+**Async Queries**
+- `submit_async_query` — Submit a long-running query
+- `submit_async_tool` — Submit a tool for async execution
+- `get_async_query_status` / `get_async_query_result` — Poll and retrieve async results
+
+**Dynamic Tool Management**
+- `register_tool` / `unregister_tool` — Register/unregister parameterized query tools
+
+**Dynamic Datasource Management**
+- `register_datasource` / `unregister_datasource` — Register/unregister datasources with connection validation
+
+**Dynamic Tools**
+- Any tool registered via `register_tool` becomes immediately available as an MCP tool
 
 ### Configuration
 
-All configuration is YAML-based in the `conf/` directory:
+All configuration is YAML-based in the `conf/` directory. Multiple documents can be combined in a single file using `---` separators.
 
 | File | Kind | Purpose |
 |------|------|---------|
-| `datasource.yaml` | `datasource` | Database connection definitions |
-| `auth.yaml` | `auth` | API keys and users |
-| `permission-*.yaml` | `permission` | RBAC rules |
-| `tool-*.yaml` | `tool` | Custom query tools |
-| `metadata-*.yaml` | `metadata` | Column/table comments |
+| `datasource-*.yaml` | `datasource` | Database connection definitions |
+| `auth.yaml` | `users` | API keys and user accounts |
+| `permission-*.yaml` | `permission` | RBAC access control rules |
+| `tool-*.yaml` | `tool` | Custom parameterized query tools |
+| `toolset-*.yaml` | `toolset` | Tool grouping and organization |
+| `metadata-*.yaml` | `metadata` | Column/table comments and annotations |
 
-Environment variables are supported via `${VAR_NAME}` syntax. Configuration changes are hot-reloaded automatically.
+Environment variables are supported via `${VAR_NAME}` syntax. Configuration changes are hot-reloaded automatically via file watcher.
+
+#### Datasource Config Example
+
+```yaml
+kind: datasource
+name: my-mysql
+type: mysql
+description: "Production MySQL"
+connection:
+  host: ${DB_HOST}
+  port: 3306
+  username: root
+  password: ${DB_PASSWORD}
+  default_database: mydb
+options:
+  pool_size: 10
+```
+
+#### Auth Config Example
+
+```yaml
+kind: users
+users:
+  - name: admin
+    api_key: "your-secret-key"
+    group: admin
+    email: "admin@example.com"
+    description: "Administrator"
+```
+
+#### Permission Config Example
+
+```yaml
+kind: permission
+users:
+  - admin
+rules:
+  - datasource: "*"
+    databases: ["*"]
+    tables: ["*"]
+    fields: ["*"]
+```
+
+#### Tool Config Example
+
+```yaml
+kind: tool
+name: query_recent_users
+description: "Query recently created users"
+datasource: my-postgres
+database: mydb
+template: "SELECT * FROM users WHERE created_at > :since LIMIT :limit"
+input_schema:
+  type: object
+  properties:
+    since:
+      type: string
+      description: "Start date (YYYY-MM-DD)"
+    limit:
+      type: integer
+      description: "Max rows"
+      default: 10
+  required: ["since"]
+```
 
 ### Environment Variables
 
@@ -305,6 +445,29 @@ Environment variables are supported via `${VAR_NAME}` syntax. Configuration chan
 | `ADB_LINK_LOG_DIR` | `./logs` | Log directory |
 | `ADB_LINK_RELOAD` | `true` | Enable hot-reload |
 | `ADB_LINK_ASYNC_QUERY_TTL` | `3600` | Async result TTL (seconds) |
+
+---
+
+## Testing
+
+```bash
+# Unit tests + SQLite integration (no external dependencies)
+make test
+
+# Unit tests only
+make test-unit
+
+# SQLite integration tests only
+make test-sqlite
+
+# Full integration tests (requires podman)
+make test-integration
+
+# Generate coverage report
+make test-coverage
+```
+
+Integration tests use podman to spin up real database containers (MySQL, PostgreSQL, ClickHouse, MSSQL, Elasticsearch, Redis, MongoDB, Milvus) and are gated behind the `integration` build tag.
 
 ---
 

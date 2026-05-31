@@ -1,4 +1,4 @@
-kind: auth_api
+kind: users
 users:
   - name: gnodux
     group: admin

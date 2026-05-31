@@ -405,10 +405,10 @@ func dispatchDocumentInto(doc map[string]any, source string, snap *configSnapsho
 		}
 		snap.Toolsets[cfg.Name] = &cfg
 
-	case "auth_api":
+	case "users":
 		var cfg models.AuthAPIConfig
 		if err := yaml.Unmarshal(data, &cfg); err != nil {
-			slog.Warn("Failed to parse auth_api", "source", source, "error", err)
+			slog.Warn("Failed to parse users", "source", source, "error", err)
 			return
 		}
 		for i := range cfg.Users {

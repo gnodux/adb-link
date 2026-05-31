@@ -25,7 +25,7 @@ func newTestConfigService(t *testing.T, authYAML string) *config.ConfigService {
 	return config.NewConfigService(&config.Settings{ConfigDir: dir})
 }
 
-const testAuthYAML = `kind: auth_api
+const testAuthYAML = `kind: users
 users:
   - name: alice
     api_key: key-alice
