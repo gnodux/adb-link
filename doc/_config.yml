@@ -1,0 +1,23 @@
+title: ADB-Link
+description: Bridging AI Agents to Your Databases
+url: "https://gnodux.github.io"
+baseurl: "/adb-link"
+theme: jekyll-theme-cayman
+markdown: kramdown
+
+plugins:
+  - jekyll-relative-links
+
+relative_links:
+  enabled: true
+  collections: true
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
