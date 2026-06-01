@@ -86,3 +86,14 @@ make test-coverage      # Generate coverage report
 - Permission checks: empty/anonymous user bypasses all checks
 - All YAML config files use `kind:` discriminator for multi-document support
 - Connection pooling managed by ConnectionService with explicit invalidate/dispose
+
+## Release
+
+- **Version source**: `cmd/adb-link/main.go` 中的 `const version` 是版本唯一来源
+- **Auto-increment**: 发版时如果用户未指定新版本号，根据当前版本自动自增 patch 版本号（例如 `0.1.0` → `0.1.1`）
+- **Release workflow**: 每次发版必须按以下顺序执行：
+  1. 更新 `cmd/adb-link/main.go` 中的 `const version` 值
+  2. `git commit` 包含该文件变更
+  3. `git tag v<version>` 打标签
+  4. `git push` 推送代码和标签到远程
+- **Tag naming**: tag 名格式为 `v<version>`，与 `main.go` 中的 version 保持一致
