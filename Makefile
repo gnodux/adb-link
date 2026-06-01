@@ -2,7 +2,7 @@ BINARY := adb-link
 PKG := github.com/gnodux/adb-link
 CMD := ./cmd/adb-link
 BUILD_DIR := bin
-VERSION ?= 0.1.0
+VERSION ?= 1.0.4
 LDFLAGS := -X main.version=$(VERSION) -s -w
 
 .PHONY: all build run-all run-api run-mcp test test-unit test-integration test-sqlite test-coverage tidy fmt vet lint clean install

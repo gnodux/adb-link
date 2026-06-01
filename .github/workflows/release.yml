@@ -32,7 +32,7 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Build binary
+      - name: Build and package
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
@@ -40,15 +40,34 @@ jobs:
           VERSION=${GITHUB_REF_NAME}
           EXT=""
           [ "${{ matrix.goos }}" = "windows" ] && EXT=".exe"
-          OUTPUT="adb-link-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}"
-          go build -ldflags "-X main.version=${VERSION} -s -w" -o "${OUTPUT}" ./cmd/adb-link
-          echo "OUTPUT=${OUTPUT}" >> "$GITHUB_ENV"
+          BINARY="adb-link${EXT}"
+          DIST_NAME="adb-link-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}"
+
+          # Build binary
+          go build -ldflags "-X main.version=${VERSION} -s -w" -o "${BINARY}" ./cmd/adb-link
+
+          # Create distribution directory
+          mkdir -p "${DIST_NAME}/conf"
+          mv "${BINARY}" "${DIST_NAME}/"
+          cp conf/*.example "${DIST_NAME}/conf/" 2>/dev/null || true
+          cp LICENSE "${DIST_NAME}/" 2>/dev/null || true
+          cp README.md "${DIST_NAME}/" 2>/dev/null || true
+          cp scripts/install-adb-link.sh "${DIST_NAME}/" 2>/dev/null || true
+
+          # Package as archive
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            zip -r "${DIST_NAME}.zip" "${DIST_NAME}"
+            echo "ARCHIVE=${DIST_NAME}.zip" >> "$GITHUB_ENV"
+          else
+            tar -czf "${DIST_NAME}.tar.gz" "${DIST_NAME}"
+            echo "ARCHIVE=${DIST_NAME}.tar.gz" >> "$GITHUB_ENV"
+          fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.OUTPUT }}
-          path: ${{ env.OUTPUT }}
+          name: ${{ env.ARCHIVE }}
+          path: ${{ env.ARCHIVE }}
 
   release:
     name: Create Release
@@ -84,13 +103,16 @@ jobs:
             echo ""
             echo "$LOG"
             echo ""
-            echo "## Binaries"
+            echo "## Downloads"
             echo ""
-            echo "| Platform | File |"
-            echo "|----------|------|"
-            for f in artifacts/adb-link-*; do
+            echo "Each archive contains the binary, example configuration files, and LICENSE."
+            echo ""
+            echo "| Platform | Archive |"
+            echo "|----------|---------|"
+            for f in artifacts/adb-link-*.{tar.gz,zip}; do
+              [ -f "$f" ] || continue
               NAME=$(basename "$f")
-              echo "| ${NAME#adb-link-${GITHUB_REF_NAME}-} | \`${NAME}\` |"
+              echo "| ${NAME} | \`${NAME}\` |"
             done
             echo "CHANGELOG_EOF"
           } >> "$GITHUB_OUTPUT"

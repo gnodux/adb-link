@@ -10,10 +10,9 @@ import (
 
 // PermissionService checks user permissions on datasources, databases, tables, fields and tools.
 // Default policy: deny all unless explicitly granted.
-// Exception: when no user is associated with a request (empty userName, e.g.
-// stdio MCP transport with no auth configured), all checks are bypassed. Once
-// any auth user is configured, every named user — including "mcp_user" — must
-// be granted access through explicit permission rules.
+// Exception: when no user is associated with a request (empty userName), all
+// checks are bypassed. The stdio MCP transport injects "mcp_stdio_user" so that
+// permission rules apply; grant this user access via permission config.
 //
 // State is held behind an RWMutex so that ConfigService hot-reload can swap
 // the rule set without race conditions.

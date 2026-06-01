@@ -11,8 +11,8 @@ import (
 
 // userFromCtx extracts the authenticated user name from the context.
 // When accessed via HTTP transport, the BearerAuth middleware injects the user.
-// When accessed via stdio transport (no auth), this returns "" which causes
-// permission checks to bypass (anonymous/empty user is treated as bypass).
+// When accessed via stdio transport, the context carries "mcp_stdio_user" so
+// that permission rules can be applied consistently.
 func userFromCtx(ctx context.Context) string {
 	return models.AuthUserNameFromContext(ctx)
 }

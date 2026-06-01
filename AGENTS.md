@@ -68,10 +68,12 @@ make test-coverage      # Generate coverage report
 
 ## Configuration
 
-- Config directory: `conf/` (override via `ADB_LINK_CONFIG_DIR` env var)
+- Config directory: `~/.adb-link/conf/` (override via `ADB_LINK_CONFIG_DIR` env var)
+- Log directory: `~/.adb-link/logs/` (override via `ADB_LINK_LOG_DIR` env var)
 - YAML files support env-var interpolation: `${ENV_VAR}`
 - Hot-reload on file changes (fsnotify)
-- Config kinds: `datasource`, `auth`, `permission`, `metadata`, `tool`
+- Config kinds: `datasource`, `users`, `permission`, `metadata`, `tool`
+- MCP stdio transport uses `mcp_stdio_user` as default identity
 
 ## Key Interfaces
 

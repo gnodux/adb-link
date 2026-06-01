@@ -2,6 +2,8 @@ package config
 
 import (
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -27,6 +29,16 @@ func TestDefaultSettings_AllDefaults(t *testing.T) {
 	}
 	if s.AsyncQueryTTL != 3600 {
 		t.Errorf("AsyncQueryTTL = %d, want %d", s.AsyncQueryTTL, 3600)
+	}
+	// ConfigDir should default to ~/.adb-link/conf
+	home, _ := os.UserHomeDir()
+	wantConf := filepath.Join(home, ".adb-link", "conf")
+	if s.ConfigDir != wantConf {
+		t.Errorf("ConfigDir = %q, want %q", s.ConfigDir, wantConf)
+	}
+	// LogDir should default to ~/.adb-link/logs
+	if !strings.HasSuffix(s.LogDir, filepath.Join(".adb-link", "logs")) {
+		t.Errorf("LogDir = %q, want suffix %q", s.LogDir, filepath.Join(".adb-link", "logs"))
 	}
 }
 

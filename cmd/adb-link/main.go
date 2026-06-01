@@ -16,10 +16,11 @@ import (
 	"github.com/gnodux/adb-link/internal/api"
 	"github.com/gnodux/adb-link/internal/config"
 	"github.com/gnodux/adb-link/internal/mcp"
+	"github.com/gnodux/adb-link/internal/models"
 	"github.com/gnodux/adb-link/internal/services"
 )
 
-const version = "0.1.0"
+const version = "1.0.4"
 
 func usage() {
 	fmt.Fprintln(os.Stderr, "Usage: adb-link <command>")
@@ -152,6 +153,8 @@ func runMCP() {
 
 	ctx, cancel := signalContext()
 	defer cancel()
+	// Inject a named user for stdio transport so permission checks apply.
+	ctx = models.WithAuthUser(ctx, &models.AuthUser{Name: "mcp_stdio_user"})
 	if err := mcpServer.ServeStdio(ctx, os.Stdin, os.Stdout); err != nil && err != context.Canceled {
 		slog.Error("mcp stdio error", "err", err)
 		os.Exit(1)

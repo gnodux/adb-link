@@ -1,0 +1,48 @@
+# MCP Stdio Configuration Example
+# Copy this file to ~/.adb-link/conf/mcp_stdio.yaml and customize.
+#
+# This configuration is used when running: adb-link run-mcp
+# The stdio transport injects "mcp_stdio_user" as the default user identity.
+
+# --- Auth: define the mcp_stdio_user ---
+kind: users
+users:
+  - name: mcp_stdio_user
+    group: mcp
+    description: "Default user for MCP stdio transport"
+
+---
+# --- Permission: grant mcp group access ---
+kind: permission
+groups: ["mcp"]
+enable: true
+rules:
+  - datasource: "*"
+    databases: ["*"]
+    tables: ["*"]
+    fields: ["*"]
+tools: ["*"]
+
+---
+# --- Datasource: example PostgreSQL ---
+# kind: datasource
+# name: my-postgres
+# type: postgresql
+# description: "Example PostgreSQL datasource"
+# connection:
+#   host: 127.0.0.1
+#   port: 5432
+#   username: app_user
+#   password: ${PG_PASSWORD}
+#   default_database: mydb
+# options:
+#   pool_size: 10
+
+---
+# --- Datasource: example SQLite ---
+# kind: datasource
+# name: my-sqlite
+# type: sqlite
+# description: "Example SQLite datasource"
+# connection:
+#   path: /path/to/database.db
