@@ -11,9 +11,23 @@
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey?style=flat-square)]()
 
-[English](README.md) | [中文](README_zh.md)
+📚 **[文档](https://gnodux.github.io/adb-link)** | [English](README.md) | [中文](README_zh.md)
 
 </div>
+
+---
+
+## 快速安装
+
+```bash
+# 一键安装
+curl -fsSL https://raw.githubusercontent.com/gnodux/adb-link/main/scripts/install-adb-link.sh | bash
+
+# 或从源码构建（需要 Go 1.22+）
+git clone https://github.com/gnodux/adb-link.git
+cd adb-link
+make build
+```
 
 ---
 
@@ -282,14 +296,14 @@ adb-link run-all  # MCP 服务在 /mcp 端点
 
 所有配置基于 YAML 格式，存放在配置目录（默认 `~/.adb-link/conf/`）：
 
-| 文件 | Kind | 用途 |
-|------|------|------|
-| `datasource.yaml` | `datasource` | 数据库连接定义 |
-| `auth.yaml` | `users` | API Key 和用户 |
-| `permission-*.yaml` | `permission` | RBAC 权限规则 |
-| `tool-*.yaml` | `tool` | 自定义查询工具 |
-| `metadata-*.yaml` | `metadata` | 列/表注释 |
-| `mcp_stdio.yaml` | 混合 | MCP stdio 默认配置（认证 + 权限 + 数据源） |
+| 文件　　　　　　　　| Kind　　　　 | 用途　　　　　　　　　　　　　　　　　　　 |
+| ---------------------| --------------| --------------------------------------------|
+| `datasource.yaml`　 | `datasource` | 数据库连接定义　　　　　　　　　　　　　　 |
+| `auth.yaml`　　　　 | `users`　　　| API Key 和用户　　　　　　　　　　　　　　 |
+| `permission-*.yaml` | `permission` | RBAC 权限规则　　　　　　　　　　　　　　　|
+| `tool-*.yaml`　　　 | `tool`　　　 | 自定义查询工具　　　　　　　　　　　　　　 |
+| `metadata-*.yaml`　 | `metadata`　 | 列/表注释　　　　　　　　　　　　　　　　　|
+| `mcp_stdio.yaml`　　| 混合　　　　 | MCP stdio 默认配置（认证 + 权限 + 数据源） |
 
 支持通过 `${VAR_NAME}` 语法使用环境变量。配置文件变更会自动热重载。
 

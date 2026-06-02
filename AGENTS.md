@@ -24,21 +24,21 @@ conf/                  — Runtime YAML configuration (datasources, auth, permis
 
 ## Supported Databases
 
-| Type | SQL Dialect | Non-SQL Client |
-|------|-------------|----------------|
-| MySQL | MySQLDialect | — |
-| PostgreSQL | PostgreSQLDialect | — |
-| SQLite | SQLiteDialect | — |
-| ClickHouse | ClickHouseDialect | — |
-| MSSQL | MSSQLDialect | — |
-| Elasticsearch | ElasticsearchDialect | ESClient |
-| Hive | HiveDialect | — |
-| GaussDB | GaussDBDialect | — |
-| Oracle | OracleDialect | — |
-| TiDB | TiDBDialect (MySQL-compat) | — |
-| Redis | RedisDialect | RedisClient |
-| MongoDB | MongoDBDialect | MongoClient |
-| Milvus | MilvusDialect | MilvusClient |
+| Type          | SQL Dialect                | Non-SQL Client |
+| ---------------| ----------------------------| ----------------|
+| MySQL         | MySQLDialect               | —              |
+| PostgreSQL    | PostgreSQLDialect          | —              |
+| SQLite        | SQLiteDialect              | —              |
+| ClickHouse    | ClickHouseDialect          | —              |
+| MSSQL         | MSSQLDialect               | —              |
+| Elasticsearch | ElasticsearchDialect       | ESClient       |
+| Hive          | HiveDialect                | —              |
+| GaussDB       | GaussDBDialect             | —              |
+| Oracle        | OracleDialect              | —              |
+| TiDB          | TiDBDialect (MySQL-compat) | —              |
+| Redis         | RedisDialect               | RedisClient    |
+| MongoDB       | MongoDBDialect             | MongoClient    |
+| Milvus        | MilvusDialect              | MilvusClient   |
 
 ## Build & Run
 

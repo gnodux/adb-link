@@ -11,9 +11,23 @@ A lightweight, high-performance database gateway designed for AI agents — prov
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey?style=flat-square)]()
 
-[English](README.md) | [中文](README_zh.md)
+📚 **[Documentation](https://gnodux.github.io/adb-link)** | [English](README.md) | [中文](README_zh.md)
 
 </div>
+
+---
+
+## Quick Install
+
+```bash
+# One-line install
+curl -fsSL https://raw.githubusercontent.com/gnodux/adb-link/main/scripts/install-adb-link.sh | bash
+
+# Or build from source (requires Go 1.22+)
+git clone https://github.com/gnodux/adb-link.git
+cd adb-link
+make build
+```
 
 ---
 
@@ -282,28 +296,28 @@ All MCP tools are available via `tools/call`:
 
 All configuration is YAML-based in the config directory (`~/.adb-link/conf/` by default):
 
-| File | Kind | Purpose |
-|------|------|---------|
-| `datasource.yaml` | `datasource` | Database connection definitions |
-| `auth.yaml` | `users` | API keys and users |
-| `permission-*.yaml` | `permission` | RBAC rules |
-| `tool-*.yaml` | `tool` | Custom query tools |
-| `metadata-*.yaml` | `metadata` | Column/table comments |
-| `mcp_stdio.yaml` | mixed | MCP stdio default config (auth + permissions + datasources) |
+| File                | Kind         | Purpose                                                     |
+| ---------------------| --------------| -------------------------------------------------------------|
+| `datasource.yaml`   | `datasource` | Database connection definitions                             |
+| `auth.yaml`         | `users`      | API keys and users                                          |
+| `permission-*.yaml` | `permission` | RBAC rules                                                  |
+| `tool-*.yaml`       | `tool`       | Custom query tools                                          |
+| `metadata-*.yaml`   | `metadata`   | Column/table comments                                       |
+| `mcp_stdio.yaml`    | mixed        | MCP stdio default config (auth + permissions + datasources) |
 
 Environment variables are supported via `${VAR_NAME}` syntax. Configuration changes are hot-reloaded automatically.
 
 ### Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ADB_LINK_CONFIG_DIR` | `~/.adb-link/conf` | Config directory path |
-| `ADB_LINK_API_HOST` | `0.0.0.0` | API bind address |
-| `ADB_LINK_API_PORT` | `8000` | API bind port |
-| `ADB_LINK_LOG_LEVEL` | `INFO` | Log level |
-| `ADB_LINK_LOG_DIR` | `~/.adb-link/logs` | Log directory |
-| `ADB_LINK_RELOAD` | `true` | Enable hot-reload |
-| `ADB_LINK_ASYNC_QUERY_TTL` | `3600` | Async result TTL (seconds) |
+| Variable                   | Default            | Description                |
+| ----------------------------| --------------------| ----------------------------|
+| `ADB_LINK_CONFIG_DIR`      | `~/.adb-link/conf` | Config directory path      |
+| `ADB_LINK_API_HOST`        | `0.0.0.0`          | API bind address           |
+| `ADB_LINK_API_PORT`        | `8000`             | API bind port              |
+| `ADB_LINK_LOG_LEVEL`       | `INFO`             | Log level                  |
+| `ADB_LINK_LOG_DIR`         | `~/.adb-link/logs` | Log directory              |
+| `ADB_LINK_RELOAD`          | `true`             | Enable hot-reload          |
+| `ADB_LINK_ASYNC_QUERY_TTL` | `3600`             | Async result TTL (seconds) |
 
 ---
 
