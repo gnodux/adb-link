@@ -1,20 +1,50 @@
-# CLAUDE.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+# AGENTS.md — adb-link
 
 ## Project Overview
 
-adb-link is a lightweight database gateway written in Go that gives AI agents unified access to 13 database engines via REST API and MCP (Model Context Protocol). It is pure Go with zero CGO, producing a single static binary.
+adb-link is a universal database gateway that exposes MCP (Model Context Protocol) tools and a REST API for querying multiple database types through a unified interface.
 
-- **Module**: `github.com/gnodux/adb-link`
-- **Go version**: 1.25.7 (uses Go 1.22+ stdlib `net/http` routing with `"METHOD /path"` patterns)
-- **No web framework, no ORM, no external test libraries** — pure stdlib throughout
+## Architecture
+
+```
+cmd/adb-link/          — Entry point (run-all, run-api, run-mcp subcommands)
+internal/
+  api/                 — HTTP REST API + middleware (BearerAuth, CORS)
+  apperr/              — Typed application errors with HTTP status mapping
+  config/              — YAML config loader + settings (env-var interpolation)
+  dialects/            — Database-specific schema introspection (SchemaDialect interface)
+  mcp/                 — MCP JSON-RPC server + tool registration
+  models/              — Shared data models (DatasourceConfig, QueryResult, etc.)
+  services/            — Business logic (QueryService, SchemaService, ConnectionService, etc.)
+tests/
+  integration/         — Podman-based integration tests (build tag: integration)
+  testutil/            — Test helpers (container lifecycle, port allocation, wait utilities)
+conf/                  — Runtime YAML configuration (datasources, auth, permissions, tools)
+```
+
+## Supported Databases
+
+| Type          | SQL Dialect                | Non-SQL Client |
+| ---------------| ----------------------------| ----------------|
+| MySQL         | MySQLDialect               | —              |
+| PostgreSQL    | PostgreSQLDialect          | —              |
+| SQLite        | SQLiteDialect              | —              |
+| ClickHouse    | ClickHouseDialect          | —              |
+| MSSQL         | MSSQLDialect               | —              |
+| Elasticsearch | ElasticsearchDialect       | ESClient       |
+| Hive          | HiveDialect                | —              |
+| GaussDB       | GaussDBDialect             | —              |
+| Oracle        | OracleDialect              | —              |
+| TiDB          | TiDBDialect (MySQL-compat) | —              |
+| Redis         | RedisDialect               | RedisClient    |
+| MongoDB       | MongoDBDialect             | MongoClient    |
+| Milvus        | MilvusDialect              | MilvusClient   |
 
 ## Build & Run
 
 ```bash
-make build              # Build binary → bin/adb-link
-make run-all            # API + MCP HTTP on one port (default :8000)
+make build              # Build binary to bin/adb-link
+make run-all            # API + MCP HTTP transport
 make run-api            # REST API only
 make run-mcp            # MCP stdio server
 ```
@@ -22,88 +52,50 @@ make run-mcp            # MCP stdio server
 ## Testing
 
 ```bash
-make test               # Unit tests + SQLite integration (no external deps)
-make test-unit          # Unit tests only (./internal/...)
+make test               # Unit tests + SQLite integration (no podman needed)
+make test-unit          # Unit tests only
 make test-sqlite        # SQLite integration only
-make test-integration   # Full podman-based integration (requires podman)
+make test-integration   # Full podman integration (requires podman)
 make test-coverage      # Generate coverage report
-make lint               # go fmt + go vet
 ```
 
-### Running a single test
+### Test Conventions
 
-```bash
-go test ./internal/services/... -run TestConvertNamedParams -count=1 -v
-go test ./tests/integration/... -run TestSQLite -count=1 -v
-```
+- **Unit tests**: In-package (`package services`), table-driven, stdlib `testing`
+- **SQLite integration**: No build tag, runs with `go test ./...`
+- **Podman integration**: `//go:build integration` tag, containers auto-cleaned via `t.Cleanup()`
+- **No external test frameworks** — pure `testing` + `t.Helper()`
 
-### Test structure
+## Configuration
 
-- **Unit tests**: in-package `*_test.go` files, table-driven, stdlib `testing` + `t.Helper()`. No external test frameworks.
-- **SQLite integration** (`tests/integration/sqlite_test.go`): no build tag, runs with `go test ./...`. Creates temp SQLite DBs via `t.TempDir()`.
-- **Podman integration** (`tests/integration/{postgres,mysql,...}_test.go`): build tag `//go:build integration`. `TestMain` checks `testutil.PodmanAvailable()` and skips if absent. Each test uses `testutil.StartContainer()` → `testutil.WaitForSQL()`/`WaitForHTTP()` → seed → test → auto-cleanup via `t.Cleanup()`.
+- Config directory: `~/.adb-link/conf/` (override via `ADB_LINK_CONFIG_DIR` env var)
+- Log directory: `~/.adb-link/logs/` (override via `ADB_LINK_LOG_DIR` env var)
+- YAML files support env-var interpolation: `${ENV_VAR}`
+- Hot-reload on file changes (fsnotify)
+- Config kinds: `datasource`, `users`, `permission`, `metadata`, `tool`
+- MCP stdio transport uses `mcp_stdio_user` as default identity
 
-## Architecture
+## Key Interfaces
 
-```
-cmd/adb-link/main.go    CLI entry: run-all, run-api, run-mcp, version subcommands
-cmd/adb-link/drivers.go Blank imports for database/sql drivers
-
-internal/
-  api/        HTTP layer: Go 1.22+ ServeMux routing, BearerAuth + CORS middleware
-  apperr/     Typed errors: apperr.Error with Code, HTTP Status, Msg, Cause
-  config/     YAML config: env-var interpolation (${VAR}), atomic snapshot, fsnotify hot-reload
-  dialects/   SchemaDialect interface — one impl per DB engine (BuildDSN, GetDatabases, etc.)
-  mcp/        MCP JSON-RPC 2.0 server: HTTP transport (http.go) + stdio transport (stdio.go)
-  models/     Shared data types only — no business logic
-  services/   Business logic + DI container wiring all services
-
-tests/
-  integration/ Podman-based integration tests + SQLite tests
-  testutil/    Container lifecycle, port allocation, readiness polling
-
-conf/          Runtime YAML configs (datasource, auth, permission, tool, metadata)
-```
-
-### Request flow
-
-```
-Client → REST API (api/router.go → middleware → handlers)
-       → MCP (mcp/http.go or mcp/stdio.go → JSON-RPC dispatch → tool handlers)
-       → Services (services/*.go)
-       → ConnectionService (cached *sql.DB or NonSQLClient)
-       → SchemaDialect (SQL) or NonSQLClient (ES/Redis/Mongo/Milvus)
-       → Database
-```
-
-### Key abstractions
-
-- **`Container`** (`services/container.go`): DI container. `NewContainer()` wires all services; `Start()` launches health checks, async cleanup, and config hot-reload watcher; hot-reload callbacks refresh permissions/metadata and invalidate connections.
-- **`ConfigService`** (`config/loader.go`): Loads multi-document YAML from `conf/` with `${ENV_VAR}` interpolation. Provides atomic snapshot access. Supports reload callbacks. Tool configs are persisted back to YAML files.
-- **`SchemaDialect`** (`dialects/dialect.go`): Interface for SQL databases — `BuildDSN`, `GetDatabases`, `GetTableNames`, `GetViewNames`, `GetTableInfo`, `GetViewInfo`. One implementation per engine.
-- **`NonSQLClient`** (`services/non_sql_client.go`): Interface for non-SQL databases (ES, Redis, MongoDB, Milvus) — `Ping`, `Close`, `GetDatabases`, `GetTableNames`, `GetTableInfo`, `Execute`. Uses native client libraries instead of `database/sql`.
-- **`ConnectionService`** (`services/connection_service.go`): Cached connection pool for both SQL (`*sql.DB`) and NonSQL clients. Periodic health checks. `InvalidateAll()` called on config reload.
-- **`PermissionService`** (`services/permission_service.go`): Glob-pattern RBAC on datasource/database/table/field/tool. Empty/anonymous user bypasses all checks.
-- **`apperr.Error`** (`apperr/error.go`): Typed errors with stable error codes and HTTP status codes. Use these for all user-facing errors.
-
-### Adding a new database type
-
-1. Add a `DatabaseType` constant in `internal/models/datasource.go`
-2. For SQL databases: implement `SchemaDialect` in `internal/dialects/<name>.go` and register in `GetDialect()` switch
-3. For non-SQL databases: implement `NonSQLClient` in `internal/services/<name>_client.go`, add to `IsNonSQLType()`, and add connection logic in `ConnectionService`
-4. Add blank driver import in `cmd/adb-link/drivers.go` (SQL only)
-5. Add `DialectInfo` entry in `models.DialectInfoMap`
-6. Write unit tests for the dialect and an integration test in `tests/integration/`
-
-### SQL template tools
-
-Tools defined in YAML (`conf/tools.yaml`, kind: `tool`) use `:param_name` placeholders. `convertNamedParams()` in `query_service.go` converts these to driver-specific placeholders: `?` for MySQL/SQLite, `$N` for PostgreSQL, `@pN` for MSSQL. Parameters are substituted from the tool's `input_schema` at execution time.
+- **SchemaDialect** (`internal/dialects/dialect.go`): BuildDSN, GetDatabases, GetTableNames, GetTableInfo, GetViewNames, GetViewInfo
+- **NonSQLClient** (`internal/services/non_sql_client.go`): Ping, Close, GetDatabases, GetTableNames, GetTableInfo, Execute
+- **MCP Server** (`internal/mcp/server.go`): JSON-RPC 2.0 with tools/list, tools/call
 
 ## Conventions
 
-- Error handling: return `apperr.Error` for user-facing errors; wrap internal errors with context
-- Permission checks: empty user string bypasses all permission filtering (used by stdio MCP transport)
-- YAML configs use `kind:` discriminator for multi-document support (`---` separator)
-- Config hot-reload: `ConfigService.AddReloadCallback()` triggers service state refresh and connection invalidation
-- All logging uses `log/slog` (stdlib structured logging)
-- Cross-compilation: `make build-linux`, `make build-darwin`, `make build-windows` (zero CGO enables this)
+- Go 1.25+, no CGO for SQL drivers (modernc.org/sqlite)
+- Error handling: use `internal/apperr` for typed errors with HTTP status codes
+- Permission checks: empty/anonymous user bypasses all checks
+- All YAML config files use `kind:` discriminator for multi-document support
+- Connection pooling managed by ConnectionService with explicit invalidate/dispose
+
+## Release
+
+- **Version source**: `cmd/adb-link/main.go` 中的 `const version` 是版本唯一来源
+- **Auto-increment**: 发版时如果用户未指定新版本号，根据当前版本自动自增 patch 版本号（例如 `0.1.0` → `0.1.1`）
+- **Release workflow**: 每次发版必须按以下顺序执行：
+  1. 更新 `cmd/adb-link/main.go` 中的 `const version` 值
+  2. `git commit` 包含该文件变更
+  3. `git tag v<version>` 打标签
+  4. `git push` 推送代码和标签到远程
+- **Tag naming**: tag 名格式为 `v<version>`，与 `main.go` 中的 version 保持一致
