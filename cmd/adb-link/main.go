@@ -20,7 +20,7 @@ import (
 	"github.com/gnodux/adb-link/internal/services"
 )
 
-const version = "1.0.6"
+const version = "1.0.7"
 
 func usage() {
 	fmt.Fprintln(os.Stderr, "Usage: adb-link <command>")
@@ -162,18 +162,35 @@ func runMCP() {
 }
 
 func waitForSignal() {
-	c := make(chan os.Signal, 1)
+	c := make(chan os.Signal, 2)
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 	<-c
+	slog.Info("shutdown signal received, stopping...")
+	// Restore default signal handling so a second Ctrl+C kills the process
+	// immediately instead of being silently swallowed.
+	signal.Stop(c)
+	go func() {
+		<-c
+		slog.Warn("second signal received, forcing exit")
+		os.Exit(1)
+	}()
 }
 
 func signalContext() (context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithCancel(context.Background())
-	c := make(chan os.Signal, 1)
+	c := make(chan os.Signal, 2)
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-c
 		cancel()
+		// Restore default signal handling so a second Ctrl+C kills the process
+		// immediately instead of being silently swallowed.
+		signal.Stop(c)
+		go func() {
+			<-c
+			slog.Warn("second signal received, forcing exit")
+			os.Exit(1)
+		}()
 	}()
 	return ctx, cancel
 }
