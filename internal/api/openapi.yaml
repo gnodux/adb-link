@@ -1,0 +1,1318 @@
+openapi: "3.0.3"
+info:
+  title: ADB-Link REST API
+  description: |
+    A lightweight, high-performance database gateway designed for AI agents —
+    providing unified SQL access, schema discovery, and tool orchestration
+    across multiple database engines via REST API.
+  version: "1.0.0"
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Datasources
+    description: Manage database connections
+  - name: Schema
+    description: Discover database schemas
+  - name: Query
+    description: Execute SQL queries
+  - name: Async Query
+    description: Submit and manage long-running queries
+  - name: Tools
+    description: Manage and execute query tools
+
+paths:
+  /api/health:
+    get:
+      operationId: health
+      tags: [Health]
+      summary: Health check
+      description: Returns the liveness status of the server.
+      security: []
+      responses:
+        "200":
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /api/datasources/list:
+    post:
+      operationId: listDatasources
+      tags: [Datasources]
+      summary: List all datasources
+      description: Returns all configured datasources visible to the authenticated user.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: List of datasources
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/APIResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/DatasourceInfo"
+
+  /api/datasources/detail:
+    post:
+      operationId: datasourceDetail
+      tags: [Datasources]
+      summary: Get datasource detail
+      description: Returns detailed configuration for a single datasource. Passwords are masked.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DatasourceNameRequest"
+      responses:
+        "200":
+          description: Datasource configuration
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/APIResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/DatasourceConfig"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/datasources/test:
+    post:
+      operationId: datasourceTest
+      tags: [Datasources]
+      summary: Test datasource connection
+      description: Tests whether the server can connect to the specified datasource.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DatasourceNameRequest"
+      responses:
+        "200":
+          description: Connection test result
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/APIResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          connected:
+                            type: boolean
+
+  /api/datasources/register:
+    post:
+      operationId: registerDatasource
+      tags: [Datasources]
+      summary: Register a new datasource
+      description: Dynamically registers a new datasource with connection validation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterDatasourceRequest"
+      responses:
+        "200":
+          description: Datasource registered successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/APIResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                          persisted_to:
+                            type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          description: Datasource already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/datasources/unregister:
+    post:
+      operationId: unregisterDatasource
+      tags: [Datasources]
+      summary: Unregister a datasource
+      description: Removes a datasource configuration and closes its connections.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DatasourceNameRequest"
+      responses:
+        "200":
+          description: Datasource unregistered
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/APIResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/databases/list:
+    post:
+      operationId: listDatabases
+      tags: [Schema]
+      summary: List databases
+      description: Lists all databases in the specified datasource.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ListDatabasesRequest"
+      responses:
+        "200":
+          description: List of databases
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/APIResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ObjectName"
+
+  /api/schema/get:
+    post:
+      operationId: getSchema
+      tags: [Schema]
+      summary: Get database schema
+      description: Returns the full schema (tables and views) of a database.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GetSchemaRequest"
+      responses:
+        "200":
+          description: Database schema
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/APIResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/DatabaseSchema"
+
+  /api/schema/table:
+    post:
+      operationId: getTableInfo
+      tags: [Schema]
+      summary: Get table info
+      description: Returns detailed column information for a single table.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GetTableRequest"
+      responses:
+        "200":
+          description: Table schema
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/APIResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/TableInfo"
+
+  /api/schema/view:
+    post:
+      operationId: getViewInfo
+      tags: [Schema]
+      summary: Get view info
+      description: Returns detailed column information for a single view.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GetViewRequest"
+      responses:
+        "200":
+          description: View schema
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/APIResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/TableInfo"
+
+  /api/query/execute:
+    post:
+      operationId: executeQuery
+      tags: [Query]
+      summary: Execute a SQL query
+      description: Executes a SQL query against the specified datasource and database.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExecuteQueryRequest"
+      responses:
+        "200":
+          description: Query result
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/APIResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/QueryResult"
+
+  /api/query/explain:
+    post:
+      operationId: explainQuery
+      tags: [Query]
+      summary: Explain a SQL query
+      description: Returns the execution plan for a SQL query.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExplainQueryRequest"
+      responses:
+        "200":
+          description: Execution plan
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/APIResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/ExplainResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /api/async/query/submit:
+    post:
+      operationId: submitAsyncQuery
+      tags: [Async Query]
+      summary: Submit an async query
+      description: Submits a long-running query for asynchronous execution. Returns a query ID for status polling.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AsyncQueryRequest"
+      responses:
+        "200":
+          description: Query submitted
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/APIResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          query_id:
+                            type: string
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/async/query/status:
+    post:
+      operationId: asyncQueryStatus
+      tags: [Async Query]
+      summary: Get async query status
+      description: Returns the current status of an async query.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QueryIDRequest"
+      responses:
+        "200":
+          description: Query status
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/APIResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/AsyncQueryStatusResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/async/query/result:
+    post:
+      operationId: asyncQueryResult
+      tags: [Async Query]
+      summary: Get async query result
+      description: Returns the full result of a completed async query.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QueryIDRequest"
+      responses:
+        "200":
+          description: Query result
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/APIResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/AsyncQueryResult"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/async/query/cancel:
+    post:
+      operationId: cancelAsyncQuery
+      tags: [Async Query]
+      summary: Cancel an async query
+      description: Cancels a pending or running async query.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QueryIDRequest"
+      responses:
+        "200":
+          description: Query cancelled
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/APIResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          query_id:
+                            type: string
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/tools:
+    get:
+      operationId: listTools
+      tags: [Tools]
+      summary: List all tools
+      description: Returns all configured tools and toolsets visible to the authenticated user.
+      responses:
+        "200":
+          description: List of tools and toolsets
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      tools:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ToolItem"
+                      toolsets:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ToolsetItem"
+
+  /api/tool/register:
+    post:
+      operationId: registerTool
+      tags: [Tools]
+      summary: Register a new tool
+      description: Dynamically registers a new query tool with a SQL/DSL template.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterToolRequest"
+      responses:
+        "200":
+          description: Tool registered
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/APIResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                          persisted_to:
+                            type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          description: Tool already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/tool/unregister:
+    post:
+      operationId: unregisterTool
+      tags: [Tools]
+      summary: Unregister a tool
+      description: Removes a tool configuration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ToolUnregisterRequest"
+      responses:
+        "200":
+          description: Tool unregistered
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/APIResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/tool/async/{tool_name}/submit:
+    post:
+      operationId: submitAsyncTool
+      tags: [Async Query]
+      summary: Submit an async tool execution
+      description: Submits a tool for asynchronous execution. Returns a query ID for status polling.
+      parameters:
+        - $ref: "#/components/parameters/ToolName"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AsyncToolRequest"
+      responses:
+        "200":
+          description: Tool submitted
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/APIResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          query_id:
+                            type: string
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/tool/async/{tool_name}/status:
+    post:
+      operationId: asyncToolStatus
+      tags: [Async Query]
+      summary: Get async tool status
+      description: Returns the current status of an async tool execution.
+      parameters:
+        - $ref: "#/components/parameters/ToolName"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QueryIDRequest"
+      responses:
+        "200":
+          description: Tool status
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/APIResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/AsyncQueryStatusResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/tool/async/{tool_name}/result:
+    post:
+      operationId: asyncToolResult
+      tags: [Async Query]
+      summary: Get async tool result
+      description: Returns the full result of a completed async tool execution.
+      parameters:
+        - $ref: "#/components/parameters/ToolName"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QueryIDRequest"
+      responses:
+        "200":
+          description: Tool result
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/APIResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/AsyncQueryResult"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/tool/async/{tool_name}/cancel:
+    post:
+      operationId: cancelAsyncTool
+      tags: [Async Query]
+      summary: Cancel an async tool execution
+      description: Cancels a pending or running async tool execution.
+      parameters:
+        - $ref: "#/components/parameters/ToolName"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QueryIDRequest"
+      responses:
+        "200":
+          description: Tool cancelled
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/APIResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          query_id:
+                            type: string
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/tool/{tool_name}:
+    post:
+      operationId: executeTool
+      tags: [Tools]
+      summary: Execute a tool
+      description: Executes a registered query tool with the given parameters.
+      parameters:
+        - $ref: "#/components/parameters/ToolName"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ToolExecuteRequest"
+      responses:
+        "200":
+          description: Tool execution result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: API key passed via the Authorization header.
+
+  parameters:
+    ToolName:
+      name: tool_name
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Name of the tool to execute.
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Access denied
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    APIResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          description: Response payload (type varies by endpoint)
+        error:
+          type: string
+      required:
+        - success
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+
+    DatasourceNameRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Datasource name
+      required:
+        - name
+
+    DatasourceInfo:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          $ref: "#/components/schemas/DatabaseType"
+        description:
+          type: string
+        shadow:
+          type: boolean
+        dialect:
+          $ref: "#/components/schemas/DialectInfo"
+      required:
+        - name
+        - type
+
+    DatasourceConfig:
+      type: object
+      properties:
+        kind:
+          type: string
+          example: datasource
+        name:
+          type: string
+        type:
+          $ref: "#/components/schemas/DatabaseType"
+        description:
+          type: string
+        shadow:
+          type: boolean
+        enable:
+          type: boolean
+        connection:
+          $ref: "#/components/schemas/ConnectionConfig"
+        options:
+          type: object
+          additionalProperties: true
+      required:
+        - kind
+        - name
+        - type
+        - connection
+
+    RegisterDatasourceRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          $ref: "#/components/schemas/DatabaseType"
+        description:
+          type: string
+        connection:
+          $ref: "#/components/schemas/ConnectionConfig"
+        options:
+          type: object
+          additionalProperties: true
+      required:
+        - name
+        - type
+        - connection
+
+    ConnectionConfig:
+      type: object
+      properties:
+        host:
+          type: string
+        port:
+          type: integer
+        username:
+          type: string
+        password:
+          type: string
+        default_database:
+          type: string
+        path:
+          type: string
+          description: SQLite file path (SQLite only)
+
+    DatabaseType:
+      type: string
+      enum:
+        - mysql
+        - postgresql
+        - sqlite
+        - clickhouse
+        - mssql
+        - elasticsearch
+        - hive
+        - gaussdb
+        - redis
+        - mongodb
+        - milvus
+        - oracle
+        - tidb
+
+    DialectInfo:
+      type: object
+      properties:
+        sql_style:
+          type: string
+        identifier_quote:
+          type: string
+        string_quote:
+          type: string
+        limit_syntax:
+          type: string
+        features:
+          type: array
+          items:
+            type: string
+        notes:
+          type: string
+
+    ObjectName:
+      type: object
+      properties:
+        name:
+          type: string
+        comment:
+          type: string
+      required:
+        - name
+
+    ListDatabasesRequest:
+      type: object
+      properties:
+        datasource_name:
+          type: string
+      required:
+        - datasource_name
+
+    GetSchemaRequest:
+      type: object
+      properties:
+        datasource_name:
+          type: string
+        database:
+          type: string
+      required:
+        - datasource_name
+        - database
+
+    GetTableRequest:
+      type: object
+      properties:
+        datasource_name:
+          type: string
+        database:
+          type: string
+        table:
+          type: string
+      required:
+        - datasource_name
+        - database
+        - table
+
+    GetViewRequest:
+      type: object
+      properties:
+        datasource_name:
+          type: string
+        database:
+          type: string
+        view:
+          type: string
+      required:
+        - datasource_name
+        - database
+        - view
+
+    DatabaseSchema:
+      type: object
+      properties:
+        database_name:
+          type: string
+        tables:
+          type: array
+          items:
+            $ref: "#/components/schemas/TableInfo"
+        views:
+          type: array
+          items:
+            $ref: "#/components/schemas/TableInfo"
+      required:
+        - database_name
+
+    TableInfo:
+      type: object
+      properties:
+        name:
+          type: string
+        schema_name:
+          type: string
+        columns:
+          type: array
+          items:
+            $ref: "#/components/schemas/ColumnInfo"
+        comment:
+          type: string
+      required:
+        - name
+        - columns
+
+    ColumnInfo:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        nullable:
+          type: boolean
+        default:
+          type: string
+          nullable: true
+        comment:
+          type: string
+          nullable: true
+        is_primary_key:
+          type: boolean
+      required:
+        - name
+        - type
+        - nullable
+        - is_primary_key
+
+    ExecuteQueryRequest:
+      type: object
+      properties:
+        datasource_name:
+          type: string
+        database:
+          type: string
+        sql:
+          type: string
+        limit:
+          type: integer
+          default: 100
+          description: Maximum number of rows to return
+        timeout_seconds:
+          type: integer
+          default: 30
+          description: Query timeout in seconds
+      required:
+        - datasource_name
+        - database
+        - sql
+
+    ExplainQueryRequest:
+      type: object
+      properties:
+        datasource_name:
+          type: string
+        database:
+          type: string
+        sql:
+          type: string
+        timeout_seconds:
+          type: integer
+          default: 30
+      required:
+        - datasource_name
+        - database
+        - sql
+
+    QueryResult:
+      type: object
+      properties:
+        columns:
+          type: array
+          items:
+            $ref: "#/components/schemas/QueryColumnMeta"
+        rows:
+          type: array
+          items:
+            type: array
+            items: {}
+        row_count:
+          type: integer
+        execution_time_ms:
+          type: number
+          format: double
+        truncated:
+          type: boolean
+        limit:
+          type: integer
+      required:
+        - columns
+        - rows
+        - row_count
+        - execution_time_ms
+        - truncated
+        - limit
+
+    ExplainResult:
+      type: object
+      properties:
+        database_type:
+          type: string
+        columns:
+          type: array
+          items:
+            $ref: "#/components/schemas/QueryColumnMeta"
+        rows:
+          type: array
+          items:
+            type: array
+            items: {}
+        execution_time_ms:
+          type: number
+          format: double
+      required:
+        - database_type
+        - columns
+        - rows
+        - execution_time_ms
+
+    QueryColumnMeta:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+      required:
+        - name
+        - type
+
+    AsyncQueryRequest:
+      type: object
+      properties:
+        datasource_name:
+          type: string
+        database:
+          type: string
+        sql:
+          type: string
+        limit:
+          type: integer
+          default: 100
+        timeout_seconds:
+          type: integer
+          default: 30
+      required:
+        - datasource_name
+        - database
+        - sql
+
+    AsyncToolRequest:
+      type: object
+      properties:
+        parameters:
+          type: object
+          additionalProperties: true
+          description: Tool-specific parameters
+        timeout_seconds:
+          type: integer
+          default: 30
+
+    QueryIDRequest:
+      type: object
+      properties:
+        query_id:
+          type: string
+      required:
+        - query_id
+
+    AsyncQueryStatusResponse:
+      type: object
+      properties:
+        query_id:
+          type: string
+        status:
+          $ref: "#/components/schemas/QueryStatus"
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        execution_time_ms:
+          type: number
+          format: double
+        error_message:
+          type: string
+        row_count:
+          type: integer
+        truncated:
+          type: boolean
+      required:
+        - query_id
+        - status
+        - created_at
+
+    AsyncQueryResult:
+      type: object
+      properties:
+        query_id:
+          type: string
+        status:
+          $ref: "#/components/schemas/QueryStatus"
+        columns:
+          type: array
+          items:
+            $ref: "#/components/schemas/QueryColumnMeta"
+        rows:
+          type: array
+          items:
+            type: array
+            items: {}
+        row_count:
+          type: integer
+        execution_time_ms:
+          type: number
+          format: double
+        error_message:
+          type: string
+      required:
+        - query_id
+        - status
+
+    QueryStatus:
+      type: string
+      enum:
+        - pending
+        - running
+        - succeeded
+        - failed
+        - cancelled
+
+    ToolItem:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        datasource:
+          type: string
+        database:
+          type: string
+        parameters:
+          type: array
+          items:
+            $ref: "#/components/schemas/ToolParameter"
+      required:
+        - name
+        - description
+        - datasource
+
+    ToolsetItem:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        tools:
+          type: array
+          items:
+            type: string
+      required:
+        - name
+        - description
+        - tools
+
+    ToolParameter:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        description:
+          type: string
+        required:
+          type: boolean
+        default: {}
+      required:
+        - name
+
+    RegisterToolRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        datasource:
+          type: string
+        database:
+          type: string
+        template:
+          type: string
+          description: SQL/DSL template with Go template syntax
+        input_schema:
+          type: object
+          additionalProperties: true
+          description: JSON Schema for the tool's input parameters
+      required:
+        - name
+        - description
+        - datasource
+        - template
+
+    ToolUnregisterRequest:
+      type: object
+      properties:
+        name:
+          type: string
+      required:
+        - name
+
+    ToolExecuteRequest:
+      type: object
+      properties:
+        parameters:
+          type: object
+          additionalProperties: true
+          description: Tool-specific parameters
