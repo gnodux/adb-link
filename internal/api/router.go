@@ -57,6 +57,9 @@ func NewRouterWithMCP(c *services.Container, mcpHandler http.Handler) http.Handl
 	// Dynamic tool execution
 	mux.HandleFunc("POST /api/tool/{tool_name}", h.ExecuteTool)
 
+	// Swagger UI and OpenAPI spec
+	registerSwaggerRoutes(mux)
+
 	// MCP HTTP transport
 	if mcpHandler != nil {
 		mux.Handle("/mcp", mcpHandler)
