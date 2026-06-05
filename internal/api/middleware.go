@@ -9,11 +9,14 @@ import (
 
 // skipAuthPaths are paths exempt from authentication.
 var skipAuthPaths = map[string]bool{
-	"/api/health":   true,
-	"/docs":         true,
-	"/openapi.json": true,
-	"/redoc":        true,
-	"/favicon.ico":  true,
+	"/api/health":           true,
+	"/api/swagger":          true,
+	"/api/swagger/":         true,
+	"/api/swagger/doc.json": true,
+	"/docs":                 true,
+	"/openapi.json":         true,
+	"/redoc":                true,
+	"/favicon.ico":          true,
 }
 
 // BearerAuth returns middleware enforcing Bearer-token authentication.
