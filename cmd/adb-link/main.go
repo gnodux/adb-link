@@ -20,7 +20,7 @@ import (
 	"github.com/gnodux/adb-link/internal/services"
 )
 
-const version = "1.0.8"
+const version = "1.0.9"
 
 func usage() {
 	fmt.Fprintln(os.Stderr, "Usage: adb-link <command>")
@@ -28,6 +28,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  run-all      Start API + MCP HTTP transport on a single server")
 	fmt.Fprintln(os.Stderr, "  run-api      Start only the HTTP API")
 	fmt.Fprintln(os.Stderr, "  run-mcp      Start MCP server over stdio")
+	fmt.Fprintln(os.Stderr, "  update       Update to the latest release")
 	fmt.Fprintln(os.Stderr, "  version      Print version")
 }
 
@@ -44,6 +45,8 @@ func main() {
 		runAPI()
 	case "run-mcp":
 		runMCP()
+	case "update":
+		runUpdate(version)
 	case "version":
 		fmt.Println("adb-link", version)
 	case "-h", "--help", "help":
