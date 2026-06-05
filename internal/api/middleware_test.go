@@ -81,6 +81,24 @@ func TestBearerAuth_SkipPath_Docs(t *testing.T) {
 	}
 }
 
+func TestBearerAuth_SkipPath_SwaggerUI(t *testing.T) {
+	cs := newTestConfigService(t, testAuthYAML)
+	handler := BearerAuth(cs)(okHandler)
+
+	paths := []string{"/api/swagger", "/api/swagger/", "/api/swagger/doc.json"}
+	for _, p := range paths {
+		t.Run(p, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, p, nil)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("expected 200 for %s, got %d", p, rec.Code)
+			}
+		})
+	}
+}
+
 func TestBearerAuth_MissingHeader_401(t *testing.T) {
 	cs := newTestConfigService(t, testAuthYAML)
 	handler := BearerAuth(cs)(okHandler)
