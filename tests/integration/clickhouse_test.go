@@ -19,9 +19,14 @@ import (
 func setupClickHouse(t *testing.T) (*sql.DB, *services.QueryService, *services.SchemaService, *config.ConfigService) {
 	t.Helper()
 
-	container := testutil.StartContainer(t, "docker.io/clickhouse/clickhouse-server:latest", 9000, nil, nil)
+	// Set explicit password for ClickHouse container
+	container := testutil.StartContainer(t, "docker.io/clickhouse/clickhouse-server:latest", 9000,
+		[]string{
+			"CLICKHOUSE_USER=default",
+			"CLICKHOUSE_PASSWORD=testpass",
+		}, nil)
 
-	dsn := fmt.Sprintf("clickhouse://default:@localhost:%s/default?dial_timeout=5s&read_timeout=60s", container.HostPort)
+	dsn := fmt.Sprintf("clickhouse://default:testpass@localhost:%s/default?dial_timeout=5s&read_timeout=60s", container.HostPort)
 	testutil.WaitForSQL(t, "clickhouse", dsn, 90*time.Second)
 
 	db, err := sql.Open("clickhouse", dsn)
@@ -41,7 +46,7 @@ connection:
   host: localhost
   port: %s
   username: default
-  password: ""
+  password: testpass
   default_database: default
 `, container.HostPort))
 
