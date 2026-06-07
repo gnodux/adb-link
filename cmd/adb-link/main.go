@@ -20,7 +20,7 @@ import (
 	"github.com/gnodux/adb-link/internal/services"
 )
 
-const version = "1.0.9"
+const version = "1.0.10"
 
 func usage() {
 	fmt.Fprintln(os.Stderr, "Usage: adb-link <command>")
@@ -81,6 +81,12 @@ func runAll() {
 	mcpServer := mcp.NewServer("adb-link", version)
 	mcp.RegisterCoreTools(mcpServer, container)
 	mcp.RegisterDynamicTools(mcpServer, container)
+	mcp.RegisterCoreResources(mcpServer, container)
+
+	// Notify MCP clients when configs change (hot-reload).
+	container.ConfigService.AddReloadCallback(func() {
+		mcpServer.NotifyResourceListChanged()
+	})
 
 	router := api.NewRouterWithMCP(container, mcpServer.HTTPHandler())
 	addr := fmt.Sprintf("%s:%d", settings.APIHost, settings.APIPort)
@@ -153,6 +159,12 @@ func runMCP() {
 	mcpServer := mcp.NewServer("adb-link", version)
 	mcp.RegisterCoreTools(mcpServer, container)
 	mcp.RegisterDynamicTools(mcpServer, container)
+	mcp.RegisterCoreResources(mcpServer, container)
+
+	// Notify MCP clients when configs change (hot-reload).
+	container.ConfigService.AddReloadCallback(func() {
+		mcpServer.NotifyResourceListChanged()
+	})
 
 	ctx, cancel := signalContext()
 	defer cancel()
