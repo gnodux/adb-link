@@ -87,13 +87,6 @@ func TestHandleRequest_Initialize(t *testing.T) {
 	if toolsCap["listChanged"] != true {
 		t.Fatalf("expected listChanged=true, got %v", toolsCap["listChanged"])
 	}
-	resCap, ok := caps["resources"].(map[string]any)
-	if !ok {
-		t.Fatalf("expected resources capability map, got %T", caps["resources"])
-	}
-	if resCap["listChanged"] != true {
-		t.Fatalf("expected resources listChanged=true, got %v", resCap["listChanged"])
-	}
 }
 
 func TestHandleRequest_Ping(t *testing.T) {

@@ -20,9 +20,96 @@ func userFromCtx(ctx context.Context) string {
 // RegisterCoreTools attaches the standard set of MCP tools backed by the
 // service container.
 func RegisterCoreTools(srv *Server, c *services.Container) {
-	// Read-only datasource tools (list_datasources, list_databases, get_schema,
-	// get_table_info, get_view_info) have been migrated to MCP Resources.
-	// See resources.go for the new resource-based equivalents.
+	// list_datasources
+	srv.RegisterTool(Tool{
+		Name:        "list_datasources",
+		Description: "List all configured datasources, including name, type, description, and dialect info.",
+		InputSchema: schemaObject(nil, nil),
+	}, func(ctx context.Context, args map[string]any) (string, error) {
+		user := userFromCtx(ctx)
+		all := c.ConfigService.ListDatasources()
+		filtered := make([]models.DatasourceInfo, 0, len(all))
+		for _, ds := range all {
+			if c.PermissionService.CheckDatasource(user, ds.Name) {
+				filtered = append(filtered, ds)
+			}
+		}
+		return jsonString(filtered)
+	})
+
+	// list_databases
+	srv.RegisterTool(Tool{
+		Name:        "list_databases",
+		Description: "List all databases in a specified datasource, returning name and comment information.",
+		InputSchema: schemaObject(map[string]any{
+			"datasource_name": prop("string", "Datasource name"),
+		}, []string{"datasource_name"}),
+	}, func(ctx context.Context, args map[string]any) (string, error) {
+		ds, _ := args["datasource_name"].(string)
+		dbs, err := c.SchemaService.GetDatabases(ctx, ds, userFromCtx(ctx))
+		if err != nil {
+			return "", err
+		}
+		return jsonString(dbs)
+	})
+
+	// get_schema
+	srv.RegisterTool(Tool{
+		Name:        "get_schema",
+		Description: "Get the complete schema of a specified database (tables, columns, types, and comments).",
+		InputSchema: schemaObject(map[string]any{
+			"datasource_name": prop("string", "Datasource name"),
+			"database":        prop("string", "Database name (index for ES, schema for Oracle, database for MongoDB/Milvus/GaussDB/TiDB, ignored for Redis)"),
+		}, []string{"datasource_name", "database"}),
+	}, func(ctx context.Context, args map[string]any) (string, error) {
+		ds, _ := args["datasource_name"].(string)
+		db, _ := args["database"].(string)
+		schema, err := c.SchemaService.GetSchema(ctx, ds, db, userFromCtx(ctx))
+		if err != nil {
+			return "", err
+		}
+		return jsonString(schema)
+	})
+
+	// get_table_info
+	srv.RegisterTool(Tool{
+		Name:        "get_table_info",
+		Description: "Get detailed column information for a specified table.",
+		InputSchema: schemaObject(map[string]any{
+			"datasource_name": prop("string", "Datasource name"),
+			"database":        prop("string", "Database name (index for ES, schema for Oracle, database for MongoDB/Milvus/GaussDB/TiDB, ignored for Redis)"),
+			"table":           prop("string", "Table name"),
+		}, []string{"datasource_name", "database", "table"}),
+	}, func(ctx context.Context, args map[string]any) (string, error) {
+		ds, _ := args["datasource_name"].(string)
+		db, _ := args["database"].(string)
+		t, _ := args["table"].(string)
+		ti, err := c.SchemaService.GetTableInfo(ctx, ds, db, t, userFromCtx(ctx))
+		if err != nil {
+			return "", err
+		}
+		return jsonString(ti)
+	})
+
+	// get_view_info
+	srv.RegisterTool(Tool{
+		Name:        "get_view_info",
+		Description: "Get detailed column information for a specified view.",
+		InputSchema: schemaObject(map[string]any{
+			"datasource_name": prop("string", "Datasource name"),
+			"database":        prop("string", "Database name (index for ES, schema for Oracle, database for MongoDB/Milvus/GaussDB/TiDB, ignored for Redis)"),
+			"view":            prop("string", "View name"),
+		}, []string{"datasource_name", "database", "view"}),
+	}, func(ctx context.Context, args map[string]any) (string, error) {
+		ds, _ := args["datasource_name"].(string)
+		db, _ := args["database"].(string)
+		v, _ := args["view"].(string)
+		vi, err := c.SchemaService.GetViewInfo(ctx, ds, db, v, userFromCtx(ctx))
+		if err != nil {
+			return "", err
+		}
+		return jsonString(vi)
+	})
 
 	// execute_query
 	srv.RegisterTool(Tool{
