@@ -144,6 +144,30 @@ func (d *MySQLDialect) GetViewInfo(ctx context.Context, db *sql.DB, database, vi
 	return d.GetTableInfo(ctx, db, database, view)
 }
 
+func (d *MySQLDialect) GetServerInfo(ctx context.Context, db *sql.DB) (*models.ServerInfo, error) {
+	info := &models.ServerInfo{}
+
+	// Version
+	var version string
+	if err := db.QueryRowContext(ctx, "SELECT VERSION()").Scan(&version); err == nil {
+		info.Version = version
+	}
+
+	// SQL Mode
+	var sqlMode string
+	if err := db.QueryRowContext(ctx, "SELECT @@sql_mode").Scan(&sqlMode); err == nil {
+		info.SQLMode = sqlMode
+	}
+
+	// Timezone
+	var timezone string
+	if err := db.QueryRowContext(ctx, "SELECT @@system_time_zone").Scan(&timezone); err == nil {
+		info.Timezone = timezone
+	}
+
+	return info, nil
+}
+
 func scanObjectNames(rows *sql.Rows) ([]models.ObjectName, error) {
 	var result []models.ObjectName
 	for rows.Next() {

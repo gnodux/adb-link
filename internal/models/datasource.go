@@ -176,6 +176,7 @@ type DatasourceInfo struct {
 	Description string       `json:"description"`
 	Shadow      bool         `json:"shadow"`
 	Dialect     DialectInfo  `json:"dialect"`
+	ServerInfo  *ServerInfo  `json:"server_info,omitempty"`
 }
 
 // ColumnMeta is metadata override for a single column.

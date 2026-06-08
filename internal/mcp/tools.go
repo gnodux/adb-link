@@ -23,7 +23,7 @@ func RegisterCoreTools(srv *Server, c *services.Container) {
 	// list_datasources
 	srv.RegisterTool(Tool{
 		Name:        "list_datasources",
-		Description: "List all configured datasources, including name, type, description, and dialect info.",
+		Description: "List all configured datasources, including name, type, description, dialect info, and server metadata (version, sql_mode, timezone, extensions).",
 		InputSchema: schemaObject(nil, nil),
 	}, func(ctx context.Context, args map[string]any) (string, error) {
 		user := userFromCtx(ctx)
@@ -31,6 +31,10 @@ func RegisterCoreTools(srv *Server, c *services.Container) {
 		filtered := make([]models.DatasourceInfo, 0, len(all))
 		for _, ds := range all {
 			if c.PermissionService.CheckDatasource(user, ds.Name) {
+				// Enrich with server info (cached on first connection)
+				if info, err := c.ConnectionService.GetServerInfo(ctx, ds.Name); err == nil {
+					ds.ServerInfo = info
+				}
 				filtered = append(filtered, ds)
 			}
 		}

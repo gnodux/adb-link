@@ -149,3 +149,33 @@ func (d *PostgreSQLDialect) GetTableInfo(ctx context.Context, db *sql.DB, databa
 func (d *PostgreSQLDialect) GetViewInfo(ctx context.Context, db *sql.DB, database, view string) (*models.TableInfo, error) {
 	return d.GetTableInfo(ctx, db, database, view)
 }
+
+func (d *PostgreSQLDialect) GetServerInfo(ctx context.Context, db *sql.DB) (*models.ServerInfo, error) {
+	info := &models.ServerInfo{}
+
+	// Version
+	var version string
+	if err := db.QueryRowContext(ctx, "SELECT version()").Scan(&version); err == nil {
+		info.Version = version
+	}
+
+	// Timezone
+	var timezone string
+	if err := db.QueryRowContext(ctx, "SHOW timezone").Scan(&timezone); err == nil {
+		info.Timezone = timezone
+	}
+
+	// Extensions
+	rows, err := db.QueryContext(ctx, "SELECT extname FROM pg_extension")
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var ext string
+			if err := rows.Scan(&ext); err == nil {
+				info.Extensions = append(info.Extensions, ext)
+			}
+		}
+	}
+
+	return info, nil
+}

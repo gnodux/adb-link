@@ -138,3 +138,22 @@ func (d *OracleDialect) GetTableInfo(ctx context.Context, db *sql.DB, database, 
 func (d *OracleDialect) GetViewInfo(ctx context.Context, db *sql.DB, database, view string) (*models.TableInfo, error) {
 	return d.GetTableInfo(ctx, db, database, view)
 }
+
+// GetServerInfo returns runtime metadata from Oracle Database.
+func (d *OracleDialect) GetServerInfo(ctx context.Context, db *sql.DB) (*models.ServerInfo, error) {
+	info := &models.ServerInfo{}
+
+	// Version
+	var version string
+	if err := db.QueryRowContext(ctx, "SELECT banner FROM v$version WHERE ROWNUM = 1").Scan(&version); err == nil {
+		info.Version = version
+	}
+
+	// Timezone
+	var timezone string
+	if err := db.QueryRowContext(ctx, "SELECT DBTIMEZONE FROM DUAL").Scan(&timezone); err == nil {
+		info.Timezone = timezone
+	}
+
+	return info, nil
+}

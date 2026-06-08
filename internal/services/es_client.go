@@ -266,3 +266,22 @@ func (c *ESClient) Execute(ctx context.Context, database, query string, limit in
 func (c *ESClient) Close() error {
 	return nil
 }
+
+// GetServerInfo returns runtime metadata from Elasticsearch.
+func (c *ESClient) GetServerInfo(ctx context.Context) (*models.ServerInfo, error) {
+	info, err := c.Info(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	serverInfo := &models.ServerInfo{}
+
+	// Version
+	if version, ok := info["version"].(map[string]any); ok {
+		if v, ok := version["number"].(string); ok {
+			serverInfo.Version = v
+		}
+	}
+
+	return serverInfo, nil
+}

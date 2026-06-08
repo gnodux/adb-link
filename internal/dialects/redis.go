@@ -40,3 +40,7 @@ func (d *RedisDialect) GetTableInfo(_ context.Context, _ *sql.DB, _, _ string) (
 func (d *RedisDialect) GetViewInfo(_ context.Context, _ *sql.DB, _, _ string) (*models.TableInfo, error) {
 	return &models.TableInfo{}, nil
 }
+
+func (d *RedisDialect) GetServerInfo(_ context.Context, _ *sql.DB) (*models.ServerInfo, error) {
+	return nil, fmt.Errorf("redis does not use sql.DB; use Redis client")
+}

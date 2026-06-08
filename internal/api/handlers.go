@@ -31,6 +31,10 @@ func (h *Handlers) ListDatasources(w http.ResponseWriter, r *http.Request) {
 	filtered := make([]models.DatasourceInfo, 0, len(all))
 	for _, ds := range all {
 		if h.Container.PermissionService.CheckDatasource(user, ds.Name) {
+			// Enrich with server info (cached on first connection)
+			if info, err := h.Container.ConnectionService.GetServerInfo(r.Context(), ds.Name); err == nil {
+				ds.ServerInfo = info
+			}
 			filtered = append(filtered, ds)
 		}
 	}

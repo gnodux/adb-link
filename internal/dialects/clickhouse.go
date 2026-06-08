@@ -138,3 +138,21 @@ func (d *ClickHouseDialect) GetTableInfo(ctx context.Context, db *sql.DB, databa
 func (d *ClickHouseDialect) GetViewInfo(ctx context.Context, db *sql.DB, database, view string) (*models.TableInfo, error) {
 	return d.GetTableInfo(ctx, db, database, view)
 }
+
+func (d *ClickHouseDialect) GetServerInfo(ctx context.Context, db *sql.DB) (*models.ServerInfo, error) {
+	info := &models.ServerInfo{}
+
+	// Version
+	var version string
+	if err := db.QueryRowContext(ctx, "SELECT version()").Scan(&version); err == nil {
+		info.Version = version
+	}
+
+	// Timezone
+	var timezone string
+	if err := db.QueryRowContext(ctx, "SELECT timezone()").Scan(&timezone); err == nil {
+		info.Timezone = timezone
+	}
+
+	return info, nil
+}

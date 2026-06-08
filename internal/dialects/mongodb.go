@@ -40,3 +40,7 @@ func (d *MongoDBDialect) GetTableInfo(_ context.Context, _ *sql.DB, _, _ string)
 func (d *MongoDBDialect) GetViewInfo(_ context.Context, _ *sql.DB, _, _ string) (*models.TableInfo, error) {
 	return &models.TableInfo{}, nil
 }
+
+func (d *MongoDBDialect) GetServerInfo(_ context.Context, _ *sql.DB) (*models.ServerInfo, error) {
+	return nil, fmt.Errorf("mongodb does not use sql.DB; use MongoDB client")
+}

@@ -40,3 +40,7 @@ func (d *MilvusDialect) GetTableInfo(_ context.Context, _ *sql.DB, _, _ string) 
 func (d *MilvusDialect) GetViewInfo(_ context.Context, _ *sql.DB, _, _ string) (*models.TableInfo, error) {
 	return &models.TableInfo{}, nil
 }
+
+func (d *MilvusDialect) GetServerInfo(_ context.Context, _ *sql.DB) (*models.ServerInfo, error) {
+	return nil, fmt.Errorf("milvus does not use sql.DB; use Milvus client")
+}

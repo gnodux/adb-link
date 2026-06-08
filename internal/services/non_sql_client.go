@@ -16,6 +16,7 @@ type NonSQLClient interface {
 	GetTableNames(ctx context.Context, database string) ([]models.ObjectName, error)
 	GetTableInfo(ctx context.Context, database, table string) (*models.TableInfo, error)
 	Execute(ctx context.Context, database, query string, limit int) (*models.QueryResult, error)
+	GetServerInfo(ctx context.Context) (*models.ServerInfo, error)
 }
 
 // IsNonSQLType returns true for database types that use a NonSQLClient

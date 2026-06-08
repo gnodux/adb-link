@@ -22,6 +22,7 @@ type SchemaDialect interface {
 	GetTableInfo(ctx context.Context, db *sql.DB, database, table string) (*models.TableInfo, error)
 	// GetViewInfo returns detailed column info for a view.
 	GetViewInfo(ctx context.Context, db *sql.DB, database, view string) (*models.TableInfo, error)
+	GetServerInfo(ctx context.Context, db *sql.DB) (*models.ServerInfo, error)
 }
 
 // GetDialect returns the appropriate dialect for a database type.

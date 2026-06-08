@@ -47,3 +47,7 @@ func (d *ElasticsearchDialect) GetTableInfo(ctx context.Context, db *sql.DB, dat
 func (d *ElasticsearchDialect) GetViewInfo(ctx context.Context, db *sql.DB, database, view string) (*models.TableInfo, error) {
 	return &models.TableInfo{Name: view, Columns: nil}, nil
 }
+
+func (d *ElasticsearchDialect) GetServerInfo(ctx context.Context, db *sql.DB) (*models.ServerInfo, error) {
+	return nil, fmt.Errorf("elasticsearch does not use sql.DB; use ES client")
+}

@@ -82,3 +82,15 @@ func (d *SQLiteDialect) GetTableInfo(ctx context.Context, db *sql.DB, database, 
 func (d *SQLiteDialect) GetViewInfo(ctx context.Context, db *sql.DB, database, view string) (*models.TableInfo, error) {
 	return d.GetTableInfo(ctx, db, database, view)
 }
+
+func (d *SQLiteDialect) GetServerInfo(ctx context.Context, db *sql.DB) (*models.ServerInfo, error) {
+	info := &models.ServerInfo{}
+
+	// Version
+	var version string
+	if err := db.QueryRowContext(ctx, "SELECT sqlite_version()").Scan(&version); err == nil {
+		info.Version = version
+	}
+
+	return info, nil
+}

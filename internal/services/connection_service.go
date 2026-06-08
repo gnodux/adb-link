@@ -15,10 +15,11 @@ import (
 
 // ConnectionService manages cached database connections.
 type ConnectionService struct {
-	mu            sync.Mutex
-	configService *config.ConfigService
-	sqlConns      map[string]*sql.DB       // key: datasource::database
-	nonSQLClients map[string]NonSQLClient  // key: datasource
+	mu              sync.Mutex
+	configService   *config.ConfigService
+	sqlConns        map[string]*sql.DB       // key: datasource::database
+	nonSQLClients   map[string]NonSQLClient  // key: datasource
+	serverInfoCache map[string]*models.ServerInfo // key: datasource
 
 	healthCancel context.CancelFunc
 	healthDone   chan struct{}
@@ -27,9 +28,10 @@ type ConnectionService struct {
 // NewConnectionService creates a new ConnectionService.
 func NewConnectionService(configService *config.ConfigService) *ConnectionService {
 	return &ConnectionService{
-		configService: configService,
-		sqlConns:      make(map[string]*sql.DB),
-		nonSQLClients: make(map[string]NonSQLClient),
+		configService:   configService,
+		sqlConns:        make(map[string]*sql.DB),
+		nonSQLClients:   make(map[string]NonSQLClient),
+		serverInfoCache: make(map[string]*models.ServerInfo),
 	}
 }
 
@@ -163,6 +165,53 @@ func (cs *ConnectionService) GetESClient(datasourceName string) (*ESClient, *mod
 	return es, cfg, nil
 }
 
+// GetServerInfo returns cached server metadata for the given datasource.
+// On first call, queries the database and caches the result.
+func (cs *ConnectionService) GetServerInfo(ctx context.Context, datasourceName string) (*models.ServerInfo, error) {
+	cs.mu.Lock()
+	if info, ok := cs.serverInfoCache[datasourceName]; ok {
+		cs.mu.Unlock()
+		return info, nil
+	}
+	cs.mu.Unlock()
+
+	cfg, err := cs.configService.GetDatasource(datasourceName)
+	if err != nil {
+		return nil, err
+	}
+
+	var info *models.ServerInfo
+	if IsNonSQLType(cfg.Type) {
+		client, _, err := cs.GetNonSQLClient(datasourceName)
+		if err != nil {
+			return nil, err
+		}
+		info, err = client.GetServerInfo(ctx)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		db, _, err := cs.GetSQLDB(datasourceName, "")
+		if err != nil {
+			return nil, err
+		}
+		dialect, err := dialects.GetDialect(cfg.Type)
+		if err != nil {
+			return nil, err
+		}
+		info, err = dialect.GetServerInfo(ctx, db)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	cs.mu.Lock()
+	cs.serverInfoCache[datasourceName] = info
+	cs.mu.Unlock()
+
+	return info, nil
+}
+
 // Invalidate removes all cached connections for the given datasource and
 // closes them. Safe to call when the datasource has no cached connections.
 func (cs *ConnectionService) Invalidate(datasourceName string) {
@@ -180,6 +229,7 @@ func (cs *ConnectionService) Invalidate(datasourceName string) {
 		_ = client.Close()
 		delete(cs.nonSQLClients, datasourceName)
 	}
+	delete(cs.serverInfoCache, datasourceName)
 }
 
 // InvalidateAll closes and clears every cached connection. Used during
@@ -195,6 +245,7 @@ func (cs *ConnectionService) InvalidateAll() {
 		_ = client.Close()
 		delete(cs.nonSQLClients, key)
 	}
+	cs.serverInfoCache = make(map[string]*models.ServerInfo)
 }
 
 // StartHealthCheck launches a background goroutine that pings cached SQL

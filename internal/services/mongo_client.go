@@ -358,3 +358,21 @@ func toBsonD(m map[string]any) bson.D {
 	}
 	return result
 }
+
+// GetServerInfo returns runtime metadata from MongoDB.
+func (c *MongoClient) GetServerInfo(ctx context.Context) (*models.ServerInfo, error) {
+	var result bson.M
+	err := c.client.Database("admin").RunCommand(ctx, bson.D{{Key: "buildInfo", Value: 1}}).Decode(&result)
+	if err != nil {
+		return nil, err
+	}
+
+	serverInfo := &models.ServerInfo{}
+
+	// Version
+	if version, ok := result["version"].(string); ok {
+		serverInfo.Version = version
+	}
+
+	return serverInfo, nil
+}

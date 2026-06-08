@@ -268,3 +268,32 @@ func extractKeyPrefix(key string) string {
 	}
 	return key
 }
+
+// GetServerInfo returns runtime metadata from Redis.
+func (c *RedisClient) GetServerInfo(ctx context.Context) (*models.ServerInfo, error) {
+	result, err := c.client.Info(ctx, "server").Result()
+	if err != nil {
+		return nil, err
+	}
+
+	serverInfo := &models.ServerInfo{}
+
+	// Parse INFO output (key:value format)
+	for _, line := range strings.Split(result, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key, value := parts[0], parts[1]
+		switch key {
+		case "redis_version":
+			serverInfo.Version = value
+		}
+	}
+
+	return serverInfo, nil
+}

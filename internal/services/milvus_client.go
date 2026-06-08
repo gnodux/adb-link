@@ -322,3 +322,15 @@ func extractStringSlice(req map[string]any, key string) []string {
 	}
 	return result
 }
+
+// GetServerInfo returns runtime metadata from Milvus.
+func (c *MilvusClient) GetServerInfo(ctx context.Context) (*models.ServerInfo, error) {
+	version, err := c.client.GetVersion(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.ServerInfo{
+		Version: version,
+	}, nil
+}

@@ -154,3 +154,15 @@ func (d *MSSQLDialect) GetTableInfo(ctx context.Context, db *sql.DB, database, t
 func (d *MSSQLDialect) GetViewInfo(ctx context.Context, db *sql.DB, database, view string) (*models.TableInfo, error) {
 	return d.GetTableInfo(ctx, db, database, view)
 }
+
+func (d *MSSQLDialect) GetServerInfo(ctx context.Context, db *sql.DB) (*models.ServerInfo, error) {
+	info := &models.ServerInfo{}
+
+	// Version
+	var version string
+	if err := db.QueryRowContext(ctx, "SELECT @@VERSION").Scan(&version); err == nil {
+		info.Version = version
+	}
+
+	return info, nil
+}
