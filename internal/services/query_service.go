@@ -59,23 +59,24 @@ func NewQueryService(
 
 // Execute runs a query against the configured datasource.
 func (qs *QueryService) Execute(ctx context.Context, req *models.QueryRequest, userName string) (*models.QueryResult, error) {
-	if userName == "" {
-		userName = "anonymous"
+	auditUser := userName
+	if auditUser == "" {
+		auditUser = "anonymous"
 	}
 	AuditLog().Printf("user=%s | action=execute_query | datasource=%s | database=%s | sql=%s",
-		userName, req.DatasourceName, req.Database, truncate(req.SQL, 200))
+		auditUser, req.DatasourceName, req.Database, truncate(req.SQL, 200))
 
 	cfg, err := qs.configService.GetDatasource(req.DatasourceName)
 	if err != nil {
 		ErrorLog().Printf("user=%s | action=execute_query | datasource=%s | error=%s",
-			userName, req.DatasourceName, err.Error())
+			auditUser, req.DatasourceName, err.Error())
 		return nil, err
 	}
 
 	if cfg.Shadow {
 		err := fmt.Errorf("数据源 '%s' 是 shadow 数据源，不允许直接查询。请通过已配置的工具(tool)来访问该数据源", req.DatasourceName)
 		ErrorLog().Printf("user=%s | action=execute_query | datasource=%s | error=%s",
-			userName, req.DatasourceName, err.Error())
+			auditUser, req.DatasourceName, err.Error())
 		return nil, err
 	}
 
@@ -84,13 +85,13 @@ func (qs *QueryService) Execute(ctx context.Context, req *models.QueryRequest, u
 		if req.Database != "" {
 			if !qs.permissionService.CheckDatabase(userName, req.DatasourceName, req.Database) {
 				err := fmt.Errorf("access denied: user '%s' cannot access '%s/%s'", userName, req.DatasourceName, req.Database)
-				ErrorLog().Printf("user=%s | action=execute_query | error=%s", userName, err.Error())
+				ErrorLog().Printf("user=%s | action=execute_query | error=%s", auditUser, err.Error())
 				return nil, err
 			}
 		} else {
 			if !qs.permissionService.CheckDatasource(userName, req.DatasourceName) {
 				err := fmt.Errorf("access denied: user '%s' cannot access '%s'", userName, req.DatasourceName)
-				ErrorLog().Printf("user=%s | action=execute_query | error=%s", userName, err.Error())
+				ErrorLog().Printf("user=%s | action=execute_query | error=%s", auditUser, err.Error())
 				return nil, err
 			}
 		}
@@ -216,11 +217,12 @@ func (qs *QueryService) executeNonSQL(ctx context.Context, req *models.QueryRequ
 
 // Explain runs an EXPLAIN-style query for the supported database types.
 func (qs *QueryService) Explain(ctx context.Context, req *models.ExplainRequest, userName string) (*models.ExplainResult, error) {
-	if userName == "" {
-		userName = "anonymous"
+	auditUser := userName
+	if auditUser == "" {
+		auditUser = "anonymous"
 	}
 	AuditLog().Printf("user=%s | action=explain_query | datasource=%s | database=%s | sql=%s",
-		userName, req.DatasourceName, req.Database, truncate(req.SQL, 200))
+		auditUser, req.DatasourceName, req.Database, truncate(req.SQL, 200))
 
 	cfg, err := qs.configService.GetDatasource(req.DatasourceName)
 	if err != nil {
@@ -335,12 +337,13 @@ var paramRegex = regexp.MustCompile(`:([a-zA-Z_][a-zA-Z0-9_]*)`)
 
 // ExecuteTemplate runs a tool's template with the given parameters.
 func (qs *QueryService) ExecuteTemplate(ctx context.Context, tool *models.ToolConfig, params map[string]any, userName string) (*models.QueryResult, error) {
-	if userName == "" {
-		userName = "anonymous"
+	auditUser := userName
+	if auditUser == "" {
+		auditUser = "anonymous"
 	}
 	paramsJSON, _ := json.Marshal(params)
 	AuditLog().Printf("user=%s | action=execute_tool | tool=%s | datasource=%s | params=%s",
-		userName, tool.Name, tool.Datasource, string(paramsJSON))
+		auditUser, tool.Name, tool.Datasource, string(paramsJSON))
 
 	if qs.permissionService != nil {
 		if !qs.permissionService.CheckTool(userName, tool.Name) {
