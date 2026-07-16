@@ -2,7 +2,27 @@
 
 How to configure adb-link MCP in each supported agent platform.
 
-## Prerequisites
+## Setup Modes
+
+adb-link supports three setup modes. Use the interactive setup script or choose manually:
+
+| Mode | Description | Prerequisites |
+|------|-------------|---------------|
+| **CLI only** | Command-line use, no Agent config | Install binary |
+| **Remote MCP** | Connect Agent to remote server | No binary needed, just the server URL |
+| **Local MCP stdio** | Agent uses local binary via stdio | Install binary |
+
+```bash
+# Interactive setup (presents mode selection menu)
+curl -fsSL https://raw.githubusercontent.com/gnodux/adb-link/main/skills/adb-link/scripts/setup-mcp.sh | bash
+
+# Non-interactive with explicit mode
+bash setup-mcp.sh --mode cli
+bash setup-mcp.sh --mode remote --url http://your-server:8000/mcp
+bash setup-mcp.sh --mode stdio
+```
+
+## Prerequisites (for CLI and Local MCP stdio modes)
 
 1. Install adb-link binary:
    ```bash
@@ -39,17 +59,13 @@ Add adb-link as a stdio MCP server:
 }
 ```
 
-For HTTP mode (if running `adb-link run-all` on a remote server):
+**Remote MCP** (connect to a remote adb-link server without installing locally):
 
 ```json
 {
   "mcpServers": {
     "adb-link": {
-      "command": "npx",
-      "args": ["mcp-remote", "http://your-server:8000/mcp"],
-      "env": {
-        "MCP_AUTH_TOKEN": "your-api-key"
-      }
+      "url": "http://your-server:8000/mcp"
     }
   }
 }
@@ -76,6 +92,18 @@ Config file locations:
 }
 ```
 
+**Remote MCP:**
+
+```json
+{
+  "mcpServers": {
+    "adb-link": {
+      "url": "http://your-server:8000/mcp"
+    }
+  }
+}
+```
+
 Cursor reads the config on startup. Reload the window to apply changes.
 
 ---
@@ -92,6 +120,18 @@ Config file location:
     "adb-link": {
       "command": "adb-link",
       "args": ["run-mcp"]
+    }
+  }
+}
+```
+
+**Remote MCP:**
+
+```json
+{
+  "mcpServers": {
+    "adb-link": {
+      "url": "http://your-server:8000/mcp"
     }
   }
 }
@@ -116,7 +156,11 @@ cp -r skills/adb-link .qoder/skills/
 Register adb-link as an MCP server using Qoder CLI:
 
 ```bash
+# Local stdio
 qoder mcp add adb-link -- adb-link run-mcp
+
+# Or remote MCP
+qoder mcp add adb-link --url http://your-server:8000/mcp
 ```
 
 Alternatively, add to your Qoder MCP config manually:

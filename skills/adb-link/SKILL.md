@@ -11,13 +11,21 @@ adb-link exposes a unified MCP (Model Context Protocol) interface to 13+ databas
 
 ## Quick Start
 
-If adb-link is not yet installed, run the one-click setup:
+If adb-link is not yet installed, run the interactive setup:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/gnodux/adb-link/main/skills/adb-link/scripts/setup-mcp.sh | bash
 ```
 
-This installs the binary, creates a default config, and registers MCP for your platform. See `references/platform-setup.md` for manual per-platform setup.
+The setup presents three modes:
+
+| # | Mode | What it does |
+|---|------|-------------|
+| 1 | **CLI only** | Installs the binary for command-line use. No Agent configuration. |
+| 2 | **Remote MCP** | Configures your Agent to connect to a remote adb-link HTTP endpoint. No binary install. |
+| 3 | **Local MCP stdio** | Installs the binary + configures your Agent to use local MCP via stdio. (default) |
+
+For non-interactive use, pass `--mode cli`, `--mode remote --url <url>`, or `--mode stdio`. See `references/platform-setup.md` for manual per-platform setup.
 
 ## MCP Transport Modes
 
