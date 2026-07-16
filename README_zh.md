@@ -22,7 +22,21 @@
 ```bash
 # 一键安装
 curl -fsSL https://raw.githubusercontent.com/gnodux/adb-link/main/scripts/install-adb-link.sh | bash
+```
 
+### Agent 一键配置
+
+一条命令安装 adb-link 并自动注册 MCP：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/gnodux/adb-link/main/skills/adb-link/scripts/setup-mcp.sh | bash
+```
+
+脚本会自动检测你使用的 Agent 平台（Claude Desktop、Cursor、Windsurf、Qoder CLI），安装二进制、创建默认配置并注册 MCP 服务器。运行完成后重启 Agent，调用 `list_datasources` 即可验证。
+
+> 也可以将 **[AGENT_INSTALL.md](AGENT_INSTALL.md)** 的内容直接粘贴到任意 AI Agent 对话中，Agent 会自动完成安装。
+
+```bash
 # 或从源码构建（需要 Go 1.22+）
 git clone https://github.com/gnodux/adb-link.git
 cd adb-link
@@ -187,9 +201,16 @@ curl http://localhost:8000/api/health
 
 ## MCP 集成
 
-### Claude Desktop / Cursor
+### Claude Desktop / Cursor / Windsurf
 
-在 MCP 客户端配置中添加：
+在 MCP 客户端配置文件中添加：
+
+| 平台 | 配置文件路径 |
+|------|------------|
+| Claude Desktop (macOS) | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| Claude Desktop (Linux) | `~/.config/Claude/claude_desktop_config.json` |
+| Cursor | `~/.cursor/mcp.json` |
+| Windsurf | `~/.codeium/windsurf/mcp_config.json` |
 
 ```json
 {
@@ -203,6 +224,24 @@ curl http://localhost:8000/api/health
 ```
 
 stdio 传输使用 `mcp_stdio_user` 作为默认身份。请在 auth/permission YAML 配置文件中为该用户配置权限。
+
+### Qoder CLI
+
+```bash
+qoder mcp add adb-link -- adb-link run-mcp
+```
+
+### Agent Skill 套件
+
+仓库内置 `skills/adb-link/` Skill 包，提供 adb-link MCP 工具的深度上下文和使用指南，让任何 Qoder 兼容的 Agent 都能流畅使用 adb-link。
+
+```bash
+# 安装到用户级（所有项目可用）
+cp -r skills/adb-link ~/.qoder/skills/
+
+# 或使用一键脚本（同时安装二进制 + 注册 MCP + 安装 Skill）
+curl -fsSL https://raw.githubusercontent.com/gnodux/adb-link/main/skills/adb-link/scripts/setup-mcp.sh | bash
+```
 
 ### HTTP 传输
 
