@@ -8,7 +8,7 @@ title: Home
 
 A lightweight, high-performance database gateway designed for AI agents -- providing unified SQL access, schema discovery, and tool orchestration across multiple database engines via REST API and MCP (Model Context Protocol).
 
-[Getting Started](getting-started) | [Configuration](configuration) | [API Reference](api-reference) | [MCP Tools](mcp-tools) | [Databases](databases) | [中文文档](zh/)
+[Getting Started](getting-started) | [Configuration](configuration) | [API Reference](api-reference) | [Agent Guide](agent-guide) | [MCP Tools](mcp-tools) | [Databases](databases) | [中文文档](zh/)
 
 ---
 

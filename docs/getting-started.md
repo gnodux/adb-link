@@ -115,9 +115,17 @@ curl http://localhost:8000/api/health
 
 ## MCP Integration
 
-### Claude Desktop / Cursor
+For full Agent setup instructions (Claude Desktop, Cursor, Windsurf, Qoder CLI), see the **[Agent Install Guide](agent-guide)**.
 
-Add to your MCP client configuration (`claude_desktop_config.json` or equivalent):
+### Quick Setup
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/gnodux/adb-link/main/skills/adb-link/scripts/setup-mcp.sh | bash
+```
+
+### Manual Config
+
+Add to your MCP client configuration:
 
 ```json
 {
@@ -149,4 +157,5 @@ Clients connect to `http://host:8000/mcp` with Bearer token authentication.
 - [Configuration Reference](configuration) -- All config options
 - [API Reference](api-reference) -- REST API endpoints
 - [MCP Tools](mcp-tools) -- Available MCP tools
+- [Agent Install Guide](agent-guide) -- Install adb-link in any AI Agent
 - [Database Support](databases) -- Supported databases and connection details
