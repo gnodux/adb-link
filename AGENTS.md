@@ -99,3 +99,9 @@ make test-coverage      # Generate coverage report
   3. `git tag v<version>` 打标签
   4. `git push` 推送代码和标签到远程
 - **Tag naming**: tag 名格式为 `v<version>`，与 `main.go` 中的 version 保持一致
+
+## Skills & Agent Integration
+
+- **Skill file**: `skills/adb-link.md` — Qoder CLI compatible Skill definition; also serves as a reference for other agent platforms
+- **Install guide**: `docs/install-mcp-agents.md` — one-click install prompt, Claude Code / Claude Desktop / Cursor / Windsurf / Continue configs, Windows path examples
+- **Maintenance rule**: when adding or renaming MCP tools, update both `skills/adb-link.md` (tools list + table) and `docs/mcp-tools.md` in the same PR

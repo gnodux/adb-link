@@ -204,6 +204,12 @@ curl http://localhost:8000/api/health
 
 stdio 传输使用 `mcp_stdio_user` 作为默认身份。请在 auth/permission YAML 配置文件中为该用户配置权限。
 
+### Claude Code
+
+```bash
+claude mcp add adb-link -- adb-link run-mcp
+```
+
 ### HTTP 传输
 
 远程或多客户端访问时使用 HTTP 传输：
@@ -211,6 +217,14 @@ stdio 传输使用 `mcp_stdio_user` 作为默认身份。请在 auth/permission 
 ```bash
 adb-link run-all  # MCP 服务在 /mcp 端点
 ```
+
+### 一键安装与更多 Agent 支持
+
+查看 **[Agent 集成指南](docs/install-mcp-agents.md)**，获取：
+- 一键安装 Prompt（直接粘贴给任意 Agent，自动完成安装与配置）
+- Cursor、Windsurf、Continue 等 Agent 的配置片段
+- Windows 路径示例
+- 适用于 Qoder CLI 的 [Skill 文件](skills/adb-link.md)
 
 ---
 

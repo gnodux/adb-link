@@ -204,6 +204,12 @@ Add to your MCP client configuration:
 
 The stdio transport uses `mcp_stdio_user` as the default identity. Configure permissions for this user in your auth/permission YAML files.
 
+### Claude Code
+
+```bash
+claude mcp add adb-link -- adb-link run-mcp
+```
+
 ### HTTP Transport
 
 For remote or multi-client access, use the HTTP transport:
@@ -211,6 +217,14 @@ For remote or multi-client access, use the HTTP transport:
 ```bash
 adb-link run-all  # serves MCP at /mcp endpoint
 ```
+
+### One-click Install & More Agents
+
+See the **[Agent Integration Guide](docs/install-mcp-agents.md)** for:
+- One-click install prompt (paste into any agent to auto-install + configure)
+- Cursor, Windsurf, Continue, and other agent configs
+- Windows path examples
+- A ready-made [Skill file](skills/adb-link.md) for Qoder CLI
 
 ---
 
