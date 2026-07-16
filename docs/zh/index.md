@@ -8,7 +8,7 @@ title: 首页
 
 一款为 AI 智能体设计的轻量级、高性能数据库网关 -- 通过 REST API 和 MCP（Model Context Protocol）协议提供统一的 SQL 访问、Schema 发现和工具编排能力，支持多种数据库引擎。
 
-[快速开始](getting-started) | [配置参考](configuration) | [API 参考](api-reference) | [MCP 工具](mcp-tools) | [数据库支持](databases) | [English](../)
+[快速开始](getting-started) | [配置参考](configuration) | [API 参考](api-reference) | [Agent 指南](agent-guide) | [MCP 工具](mcp-tools) | [数据库支持](databases) | [English](../)
 
 ---
 

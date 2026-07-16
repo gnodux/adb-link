@@ -115,7 +115,15 @@ curl http://localhost:8000/api/health
 
 ## MCP 集成
 
-### Claude Desktop / Cursor
+完整的 Agent 安装指南（Claude Desktop、Cursor、Windsurf、Qoder CLI）请参见 **[Agent 安装指南](agent-guide)**。
+
+### 快速安装
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/gnodux/adb-link/main/skills/adb-link/scripts/setup-mcp.sh | bash
+```
+
+### 手动配置
 
 在 MCP 客户端配置文件中添加：
 
@@ -149,4 +157,5 @@ adb-link run-all  # MCP 服务在 /mcp 端点
 - [配置参考](configuration) -- 所有配置选项
 - [API 参考](api-reference) -- REST API 端点
 - [MCP 工具](mcp-tools) -- 可用的 MCP 工具
+- [Agent 安装指南](agent-guide) -- 在任意 AI Agent 中安装 adb-link
 - [数据库支持](databases) -- 支持的数据库和连接配置
