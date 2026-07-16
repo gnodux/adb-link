@@ -22,7 +22,21 @@ A lightweight, high-performance database gateway designed for AI agents — prov
 ```bash
 # One-line install
 curl -fsSL https://raw.githubusercontent.com/gnodux/adb-link/main/scripts/install-adb-link.sh | bash
+```
 
+### Agent One-Click Setup
+
+Install adb-link **and** configure MCP in one command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/gnodux/adb-link/main/skills/adb-link/scripts/setup-mcp.sh | bash
+```
+
+This auto-detects your agent platform (Claude Desktop, Cursor, Windsurf, Qoder CLI), installs the binary, creates a default config, and registers the MCP server. After running, restart your agent and call `list_datasources`.
+
+> For full instructions you can paste directly into any AI Agent, see **[AGENT_INSTALL.md](AGENT_INSTALL.md)**.
+
+```bash
 # Or build from source (requires Go 1.22+)
 git clone https://github.com/gnodux/adb-link.git
 cd adb-link
@@ -187,9 +201,16 @@ curl http://localhost:8000/api/health
 
 ## MCP Integration
 
-### Claude Desktop / Cursor
+### Claude Desktop / Cursor / Windsurf
 
 Add to your MCP client configuration:
+
+| Platform | Config file |
+|----------|------------|
+| Claude Desktop (macOS) | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| Claude Desktop (Linux) | `~/.config/Claude/claude_desktop_config.json` |
+| Cursor | `~/.cursor/mcp.json` |
+| Windsurf | `~/.codeium/windsurf/mcp_config.json` |
 
 ```json
 {
@@ -203,6 +224,24 @@ Add to your MCP client configuration:
 ```
 
 The stdio transport uses `mcp_stdio_user` as the default identity. Configure permissions for this user in your auth/permission YAML files.
+
+### Qoder CLI
+
+```bash
+qoder mcp add adb-link -- adb-link run-mcp
+```
+
+### Agent Skill Suite
+
+A Qoder CLI skill package is bundled in `skills/adb-link/`. It provides deep context about adb-link's MCP tools and workflows, enabling any Qoder-compatible agent to use adb-link fluently.
+
+```bash
+# Install user-level (available in all projects)
+cp -r skills/adb-link ~/.qoder/skills/
+
+# Or use the setup script (installs binary + registers MCP + installs skill)
+curl -fsSL https://raw.githubusercontent.com/gnodux/adb-link/main/skills/adb-link/scripts/setup-mcp.sh | bash
+```
 
 ### HTTP Transport
 

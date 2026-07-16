@@ -20,7 +20,7 @@ import (
 	"github.com/gnodux/adb-link/internal/services"
 )
 
-const version = "1.0.13"
+const version = "1.0.14"
 
 func usage() {
 	fmt.Fprintln(os.Stderr, "Usage: adb-link <command>")
